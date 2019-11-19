@@ -1,0 +1,1 @@
+python -m labrad.node --name=SrA --host=DESKTOP-M1L0AKI --password=
