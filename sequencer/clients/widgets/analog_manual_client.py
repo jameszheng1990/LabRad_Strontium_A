@@ -51,6 +51,7 @@ class AnalogVoltageManualClient(QtWidgets.QGroupBox):
         yield self.getChannelInfo()
         print(4)
         self.updateDisplay()
+        print('Connected!')
 
     @inlineCallbacks
     def get_server_configuration(self):
@@ -112,7 +113,8 @@ class AnalogVoltageManualClient(QtWidgets.QGroupBox):
         if self.mode == 'auto':
             self.mode_button.setChecked(0)
             self.mode_button.setText('Auto')
-        self.voltage_box.display(float(self.manual_output))
+        if self.manual_output is not None:
+            self.voltage_box.display(float(self.manual_output))
         self.free = True
 
     def receive_sequencer_update(self, c, signal_json):
@@ -189,14 +191,14 @@ class AnalogVoltageManualClient(QtWidgets.QGroupBox):
 
         event.accept()
 
-if __name__ == '__main__':
-    import sys
-    a = QtWidgets.QApplication([])
-    import client_tools.qt5reactor as qt5reactor
-    qt5reactor.install()
-    from twisted.internet import reactor
-#    conf = ClientConfig()
-#    widget = AnalogVoltageManualClient(conf, reactor)
-    widget = AnalogVoltageManualClient(reactor)
-    widget.show()
-    reactor.run()
+#if __name__ == '__main__':
+#    import sys
+#    a = QtWidgets.QApplication([])
+#    import client_tools.qt5reactor as qt5reactor
+#    qt5reactor.install()
+#    from twisted.internet import reactor
+##    conf = ClientConfig()
+##    widget = AnalogVoltageManualClient(conf, reactor)
+#    widget = AnalogVoltageManualClient(reactor)
+#    widget.show()
+#    reactor.run()

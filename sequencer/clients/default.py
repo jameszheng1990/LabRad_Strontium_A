@@ -3,10 +3,9 @@ import time
 import numpy as np
 import os
 import sys
-sys.path.append(os.getenv('PROJECT_LABRAD_TOOLS_PATH'))
 
 from PyQt5 import QtGui, QtCore, Qt, QtWidgets
-from PyQt5.QtCore import pyqtSignal 
+from PyQt5.QtCore import pyqtSignal
 from twisted.internet.defer import inlineCallbacks
 
 from client_tools.connection import connection
@@ -41,11 +40,11 @@ class LoadAndSave(QtWidgets.QWidget):
 class SequencerClient(QtWidgets.QWidget):
     name = None
 
-    conductor_servername = None
+    conductor_servername = 'conductor'
     conductor_update_id = None
-    sequencer_servername = None
+    sequencer_servername = 'sequencer'
     sequencer_update_id = None
-    sequence_directory = None
+    sequence_directory = 'C:\\LabRad\\SrSequences\\{}\\'
 
     sequence_parameters = {}
 
@@ -54,10 +53,12 @@ class SequencerClient(QtWidgets.QWidget):
     spacer_width = 65
     spacer_height = 15
     namecolumn_width = 130
-    namelabel_width = 200
+    namelabel_width= 200
     durationrow_height = 20
     analog_height = 50
     max_columns = 100
+    timing_channel = "Trigger@D15" # Needed?
+    master_channel = timing_channel
     digital_colors = ["#ff0000", "#ff7700", "#ffff00", "#00ff00", "#0000ff", "#8a2be2"]
     qt_style = 'Gtk+'
 
@@ -81,7 +82,7 @@ class SequencerClient(QtWidgets.QWidget):
             yield self.displaySequence(self.default_sequence)
             yield self.connectSignals()
             yield self.getChannels()
-#            yield self.get_sequence_parameters()
+#            yield self.get_sequence_parameters()  # NOT used
         except Exception as e:
             raise e
 
@@ -239,7 +240,7 @@ class SequencerClient(QtWidgets.QWidget):
 
         self.loadAndSave.saveButton.clicked.connect(self.saveSequence)
         self.loadAndSave.loadButton.clicked.connect(self.browse)
-#        self.loadAndSave.locationBox.returnPressed.connect(self.loadSequence)
+#        self.loadAndSave.locationBox.returnPressed.connect(self.loadSequence)  # NOT used
 
         for i, b in enumerate(self.addDltRow.buttons):
             b.add.clicked.connect(self.addColumn(i))
@@ -281,7 +282,7 @@ class SequencerClient(QtWidgets.QWidget):
         directory = self.sequence_directory.format(timestr)
         if not os.path.exists(directory):
             directory = self.sequence_directory.split('{}')[0]
-        filepath = QtWidgets.QFileDialog().getOpenFileName(directory=directory)
+        filepath = QtWidgets.QFileDialog().getOpenFileName(directory=directory)[0]  # Added [0]
         if filepath:
             self.loadAndSave.locationBox.setText(filepath)
             self.loadSequence(filepath)
@@ -488,8 +489,8 @@ class SequencerClient(QtWidgets.QWidget):
                     }
                 self.sequence_parameters.update(update)
                 self.analogClient.displaySequence(self.sequence)
-#                self.sequence_parameters.update(update)
-#                self.analogClient.displaySequence(self.sequence)
+#                self.sequence_parameters.update(update)             #NOT used
+#                self.analogClient.displaySequence(self.sequence)    #NOT used
     
     @inlineCallbacks
     def get_sequence_parameters(self):
@@ -515,10 +516,10 @@ class SequencerClient(QtWidgets.QWidget):
         digital_sequence = {key: [{'dt': dt, 'out': dl[key]} 
                 for dt, dl in zip(durations, digital_logic)]
                 for key in self.digital_channels}
-        analog_sequence = {key: [dict(s.items() + {'dt': dt}.items()) 
+        analog_sequence = {key: [dict(list(s.items()) + list({'dt': dt}.items())) 
                 for s, dt in zip(self.analogClient.sequence[key], durations)]
                 for key in self.analog_channels}
-        sequence = dict(digital_sequence.items() + analog_sequence.items())
+        sequence = dict(list(digital_sequence.items()) + list(analog_sequence.items()))
         return sequence
     
 #    def undo(self):
@@ -531,7 +532,7 @@ class SequencerClient(QtWidgets.QWidget):
 #
 #    def keyPressEvent(self, c):
 #        super(SequencerClient, self).keyPressEvent(c)
-#        if QtGui.QApplication.keyboardModifiers() == QtCore.Qt.ClientModifier:
+#        if QtWidgets.QApplication.keyboardModifiers() == QtCore.Qt.ClientModifier:
 #            if c.key() == QtCore.Qt.Key_Z:
 #                self.undo()
 #            if c.key() == QtCore.Qt.Key_R:
@@ -556,3 +557,4 @@ if __name__ == '__main__':
     widget = SequencerClient(reactor)
     widget.show()
     reactor.run()
+    

@@ -20,7 +20,7 @@ class YeSrSequencerBoard(DefaultDevice):
     ok_interface = None
     ok_bitfilename = None
 
-    conductor_servername = None
+    conductor_servername = 'conductor'
 
     channels = None
         
@@ -28,7 +28,7 @@ class YeSrSequencerBoard(DefaultDevice):
     sequence_pipe = 0x80
     clk = 50e6 # [Hz]
     
-    sequence_directory = 'C:/LabRad/SrSequences/{}/'
+    sequence_directory = 'C:\\LabRad\\SrSequences\\{}\\'
     subsequence_names = None
     sequence = None
     raw_sequene = None
@@ -50,13 +50,13 @@ class YeSrSequencerBoard(DefaultDevice):
             channel.set_board(self)
         
         self.connect_to_labrad()
-        self.ok_server = self.cxn[self.ok_servername]
-        ok = OKProxy(self.ok_server)
-        
-        fp = ok.okCFrontPanel()
-        fp.OpenBySerial(self.ok_interface)
-        fp.ConfigureFPGA(self.ok_bitfilename)
-        self.fp = fp
+#        self.ok_server = self.cxn[self.ok_servername]
+#        ok = OKProxy(self.ok_server)
+#        
+#        fp = ok.okCFrontPanel()
+#        fp.OpenBySerial(self.ok_interface)
+#        fp.ConfigureFPGA(self.ok_bitfilename)
+#        self.fp = fp
         
         self.update_mode()
         self.update_channel_modes()
@@ -241,8 +241,8 @@ class YeSrSequencerBoard(DefaultDevice):
     
     def update_mode(self):
         mode_word = 0 | 2 * int(self.loading) | self.running
-        self.fp.SetWireInValue(self.mode_wire, mode_word)
-        self.fp.UpdateWireIns()
+#        self.fp.SetWireInValue(self.mode_wire, mode_word)
+#        self.fp.UpdateWireIns()
 
     def set_loading(self, loading):
         if loading is not None:

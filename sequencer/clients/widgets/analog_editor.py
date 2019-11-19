@@ -2,7 +2,6 @@ import json
 
 import os
 import sys
-sys.path.append(os.getenv('PROJECT_LABRAD_TOOLS_PATH'))
 
 from PyQt5 import QtGui, QtCore, QtWidgets
 from twisted.internet.defer import inlineCallbacks, returnValue
@@ -153,7 +152,8 @@ class MplCanvas(FigureCanvas):
         self.fig.set_tight_layout(True)
 
         FigureCanvas.__init__(self, self.fig)
-        self.setFixedSize(600, 300)
+#        self.setFixedSize(600, 300)
+        self.setFixedSize(900, 600)
         
         self.fix_zoom = False
 
@@ -198,9 +198,9 @@ class AnalogVoltageEditor(QtWidgets.QDialog):
         self.canvas = MplCanvas()
         self.nav = NavigationToolbar(self.canvas, self)
         self.ramp_table = RampTable(self.ramp_maker)
-        self.ramp_scroll = QtGui.QScrollArea()
-        self.buttons = QtGui.QDialogButtonBox(QtGui.QDialogButtonBox.Ok 
-                                              | QtGui.QDialogButtonBox.Cancel, 
+        self.ramp_scroll = QtWidgets.QScrollArea()
+        self.buttons = QtWidgets.QDialogButtonBox(QtWidgets.QDialogButtonBox.Ok 
+                                              | QtWidgets.QDialogButtonBox.Cancel, 
                                               QtCore.Qt.Horizontal, self)
 
         self.ramp_scroll.setWidget(self.ramp_table)
@@ -208,9 +208,9 @@ class AnalogVoltageEditor(QtWidgets.QDialog):
                                         + self.ramp_scroll.horizontalScrollBar().height()
                                         - 10)
         self.ramp_scroll.setWidgetResizable(True)
-        self.buttons.button(QtGui.QDialogButtonBox.Ok).setDefault(False)
+        self.buttons.button(QtWidgets.QDialogButtonBox.Ok).setDefault(False)
         
-        self.layout = QtGui.QGridLayout()
+        self.layout = QtWidgets.QGridLayout()
         self.layout.setSpacing(0)
         self.layout.setContentsMargins(0, 0, 0, 0)
         
@@ -330,7 +330,7 @@ class AnalogVoltageEditor(QtWidgets.QDialog):
         return self.get_sequence()
 
     def keyPressEvent(self, c):
-        if QtGui.QApplication.keyboardModifiers() == QtCore.Qt.ControlModifier:
+        if QtWidgets.QApplication.keyboardModifiers() == QtCore.Qt.ControlModifier:
             if c.key() == QtCore.Qt.Key_Return:
                 self.buttons.accepted.emit()
             if c.key() == QtCore.Qt.Key_Q:

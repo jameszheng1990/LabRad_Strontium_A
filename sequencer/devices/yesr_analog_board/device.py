@@ -1,4 +1,7 @@
 import json
+import os
+import sys
+sys.path.append(os.getenv('PROJECT_LABRAD_TOOLS_PATH'))
 
 from device_server.device import DefaultDevice
 
@@ -22,18 +25,21 @@ class YeSrAnalogBoard(YeSrSequencerBoard):
     manual_voltage_wires = [0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08]
     clk = 50e6 / (2 * 8) # [Hz]
     
+    def initialize(self, config):
+        YeSrSequencerBoard.initialize(self, config)
+    
     def update_channel_modes(self):
         cm_list = [c.mode for c in self.channels]
         value = sum([2**j for j, m in enumerate(cm_list) if m == 'manual'])
         value = 0b0000000000000000 | value
-        self.fp.SetWireInValue(self.channel_mode_wire, value)
-        self.fp.UpdateWireIns()
+#        self.fp.SetWireInValue(self.channel_mode_wire, value)
+#        self.fp.UpdateWireIns()
     
-    def update_channel_manual_outputs(self): 
-        for c, w in zip(self.channels, self.manual_voltage_wires):
-            v = volts_to_bits(c.manual_output - min(c.dac_voltage_range), c.dac_voltage_range, c.dac_bits)
-            self.fp.SetWireInValue(w, v)
-        self.fp.UpdateWireIns()
+#    def update_channel_manual_outputs(self): 
+#        for c, w in zip(self.channels, self.manual_voltage_wires):
+#            v = volts_to_bits(c.manual_output - min(c.dac_voltage_range), c.dac_voltage_range, c.dac_bits)
+#            self.fp.SetWireInValue(w, v)
+#        self.fp.UpdateWireIns()
     
     def default_sequence_segment(self, channel, dt):
         return {'dt': dt, 'type': 's', 'vf': channel.manual_output}

@@ -1,4 +1,7 @@
 import json
+import os
+import sys
+sys.path.append(os.getenv('PROJECT_LABRAD_TOOLS_PATH'))
 
 from device_server.device import DefaultDevice
 
@@ -19,14 +22,17 @@ class YeSrDigitalBoard(YeSrSequencerBoard):
     manual_invert_wires = [0x02, 0x04, 0x06, 0x08]
     clk = 50e6 # [Hz]
     
+    def initialize(self, config):
+        YeSrSequencerBoard.initialize(self, config)
+    
     def update_channel_modes(self):
         cm_list = [c.mode for c in self.channels]
         values = [sum([2**j for j, m in enumerate(cm_list[i:i+16]) 
                 if m == 'manual']) for i in range(0, 64, 16)]
-        for value, wire in zip(values, self.channel_mode_wires):
-            self.fp.SetWireInValue(wire, value)
-        self.fp.UpdateWireIns()
-        self.update_channel_manual_outputs()
+#        for value, wire in zip(values, self.channel_mode_wires):
+#            self.fp.SetWireInValue(wire, value)
+#        self.fp.UpdateWireIns()
+#        self.update_channel_manual_outputs()
    
     def update_channel_manual_outputs(self): 
         cm_list = [c.mode for c in self.channels]
@@ -36,9 +42,9 @@ class YeSrDigitalBoard(YeSrSequencerBoard):
                 cm_list[i:i+16], cs_list[i:i+16], ci_list[i:i+16]))
                 if (m=='manual' and s!=i) or (m=='auto' and i==True)]) 
                 for i in range(0, 64, 16)]
-        for value, wire in zip(values, self.manual_invert_wires):
-            self.fp.SetWireInValue(wire, value)
-        self.fp.UpdateWireIns()
+#        for value, wire in zip(values, self.manual_invert_wires):
+#            self.fp.SetWireInValue(wire, value)
+#        self.fp.UpdateWireIns()
     
     def default_sequence_segment(self, channel, dt):
         return {'dt': dt, 'out': channel.manual_output}

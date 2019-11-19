@@ -37,13 +37,13 @@ class AnalogNameColumn(QtWidgets.QWidget):
 
     def populate(self):
         self.labels = {nl: NameBox(nl) for nl in self.channels}
-        self.layout = QtGui.QVBoxLayout()
+        self.layout = QtWidgets.QVBoxLayout()
         self.layout.setSpacing(0)
         self.layout.setContentsMargins(10, 0, 0, 0)
 
         for i, nl in enumerate(sorted(self.channels, key=lambda nl: nl.split('@')[1])):
             self.layout.addWidget(self.labels[nl])
-        self.layout.addWidget(QtGui.QWidget())
+        self.layout.addWidget(QtWidgets.QWidget())
         self.setLayout(self.layout)
 
 
@@ -104,7 +104,7 @@ class AnalogClient(QtWidgets.QWidget):
 
     def populate(self):
         self.nameColumn = AnalogNameColumn(self.channels)
-        self.nameColumn.scrollArea = QtGui.QScrollArea()
+        self.nameColumn.scrollArea = QtWidgets.QScrollArea()
         self.nameColumn.scrollArea.setWidget(self.nameColumn)
         self.nameColumn.scrollArea.setWidgetResizable(True)
         self.nameColumn.scrollArea.setHorizontalScrollBarPolicy(1)
@@ -112,20 +112,20 @@ class AnalogClient(QtWidgets.QWidget):
         self.nameColumn.scrollArea.setFrameShape(0)
        	
         self.array = AnalogArray(self.channels, self.parent)
-        self.array.scrollArea = QtGui.QScrollArea()
+        self.array.scrollArea = QtWidgets.QScrollArea()
         self.array.scrollArea.setWidget(self.array)
         self.array.scrollArea.setWidgetResizable(True)
         self.array.scrollArea.setHorizontalScrollBarPolicy(1)
         self.array.scrollArea.setVerticalScrollBarPolicy(1)
         self.array.scrollArea.setFrameShape(0)
 
-        self.vscroll = QtGui.QScrollArea()
-        self.vscroll.setWidget(QtGui.QWidget())
+        self.vscroll = QtWidgets.QScrollArea()
+        self.vscroll.setWidget(QtWidgets.QWidget())
         self.vscroll.setHorizontalScrollBarPolicy(1)
         self.vscroll.setVerticalScrollBarPolicy(2)
         self.vscroll.setFrameShape(0)
         
-        self.layout = QtGui.QHBoxLayout()
+        self.layout = QtWidgets.QHBoxLayout()
         self.layout.addWidget(self.nameColumn.scrollArea)
         self.layout.addWidget(self.array.scrollArea)
         self.layout.addWidget(self.vscroll)
@@ -158,4 +158,5 @@ class AnalogClient(QtWidgets.QWidget):
             for vs in self.vscrolls:
                 vs.setValue(val)
         return afv
+
 

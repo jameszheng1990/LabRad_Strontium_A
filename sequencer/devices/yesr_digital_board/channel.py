@@ -24,10 +24,14 @@ class YeSrDigitalChannel(object):
         self.sequence = sequence
     
     def get_info(self):
+        """
+        This function is used to get information from all the parameters, such as "channel_type = digital",
+        "invert = false" etc 
+        """
         info = {x: getattr(self, x) for x in dir(self) if x[0] != '_'}
-        info = json.loads(json.dumps(info, default=lambda x: None))
-        info = {k: v for k, v in info.items() if v is not None}
-        return info
+        info = json.loads(json.dumps(info, default=lambda x: None))   #Translation to items-able
+        info = {k: v for k, v in info.items() if v is not None}       #Filter out non-None items
+        return info                                                   
     
     def set_mode(self, mode):
         if mode not in ('auto', 'manual'):
@@ -43,4 +47,3 @@ class YeSrDigitalChannel(object):
 
     def get_manual_output(self):
         return bool(self.manual_output)
-    

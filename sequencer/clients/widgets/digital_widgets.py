@@ -47,7 +47,7 @@ class DigitalColumn(QtWidgets.QWidget):
 
     def populate(self):
         self.buttons = {nl: SequencerButton() for nl in self.channels}
-        self.layout = QtGui.QVBoxLayout()
+        self.layout = QtWidgets.QVBoxLayout()
         self.layout.setSpacing(0)
         self.layout.setContentsMargins(0, 0, 0, 0)
         for i, nl in enumerate(sorted(self.channels, key=lambda nl: nl.split('@')[1])):
@@ -55,7 +55,7 @@ class DigitalColumn(QtWidgets.QWidget):
                 self.layout.addWidget(Spacer(self.parent))
             self.layout.addWidget(self.buttons[nl])
             self.buttons[nl].on_color = self.parent.digital_colors[i%len(self.parent.digital_colors)]
-        self.layout.addWidget(QtGui.QWidget())
+        self.layout.addWidget(QtWidgets.QWidget())
         self.setLayout(self.layout)
 
     def getLogic(self):
@@ -75,7 +75,7 @@ class DigitalArray(QtWidgets.QWidget):
 
     def populate(self):
         self.columns = [DigitalColumn(self.channels, self.parent, i) for i in range(self.parent.max_columns)]
-        self.layout = QtGui.QHBoxLayout()
+        self.layout = QtWidgets.QHBoxLayout()
         for lc in self.columns:
             self.layout.addWidget(lc)
         self.layout.setSpacing(0)
@@ -150,7 +150,7 @@ class DigitalNameColumn(QtWidgets.QWidget):
 
     def populate(self):
         self.labels = {k: NameBox(k, v) for k, v in self.channels.items()}
-        self.layout = QtGui.QVBoxLayout()
+        self.layout = QtWidgets.QVBoxLayout()
         self.layout.setSpacing(0)
         self.layout.setContentsMargins(10, 0, 0, 0)
         for i, nl in enumerate(sorted(self.channels, key=lambda nl: nl.split('@')[1])):
@@ -158,7 +158,7 @@ class DigitalNameColumn(QtWidgets.QWidget):
                 self.layout.addWidget(Spacer(self.parent))
             self.layout.addWidget(self.labels[nl])
             self.labels[nl].on_color = self.parent.digital_colors[i%len(self.parent.digital_colors)]
-        self.layout.addWidget(QtGui.QWidget())
+        self.layout.addWidget(QtWidgets.QWidget())
         self.setLayout(self.layout)
 
 class DigitalClient(QtWidgets.QWidget):
@@ -170,7 +170,7 @@ class DigitalClient(QtWidgets.QWidget):
 
     def populate(self):
         self.nameColumn = DigitalNameColumn(self.channels, self.parent)
-        self.nameColumn.scrollArea = QtGui.QScrollArea()
+        self.nameColumn.scrollArea = QtWidgets.QScrollArea()
         self.nameColumn.scrollArea.setWidget(self.nameColumn)
         self.nameColumn.scrollArea.setWidgetResizable(True)
         self.nameColumn.scrollArea.setHorizontalScrollBarPolicy(1)
@@ -178,20 +178,20 @@ class DigitalClient(QtWidgets.QWidget):
         self.nameColumn.scrollArea.setFrameShape(0)
 
         self.array = DigitalArray(self.channels, self.parent)
-        self.array.scrollArea = QtGui.QScrollArea()
+        self.array.scrollArea = QtWidgets.QScrollArea()
         self.array.scrollArea.setWidget(self.array)
         self.array.scrollArea.setWidgetResizable(True)
         self.array.scrollArea.setHorizontalScrollBarPolicy(1)
         self.array.scrollArea.setVerticalScrollBarPolicy(1)
         self.array.scrollArea.setFrameShape(0)
 
-        self.vscroll = QtGui.QScrollArea()
-        self.vscroll.setWidget(QtGui.QWidget())
+        self.vscroll = QtWidgets.QScrollArea()
+        self.vscroll.setWidget(QtWidgets.QWidget())
         self.vscroll.setHorizontalScrollBarPolicy(1)
         self.vscroll.setVerticalScrollBarPolicy(2)
         self.vscroll.setFrameShape(0)
         
-        self.layout = QtGui.QHBoxLayout()
+        self.layout = QtWidgets.QHBoxLayout()
         self.layout.addWidget(self.nameColumn.scrollArea)
         self.layout.addWidget(self.array.scrollArea)
         self.layout.addWidget(self.vscroll)
@@ -220,3 +220,4 @@ class DigitalClient(QtWidgets.QWidget):
             for vs in self.vscrolls:
                 vs.setValue(val)
         return afv
+
