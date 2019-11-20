@@ -24,11 +24,11 @@ class CurrentControllerClient(QtWidgets.QGroupBox):
     name = None
     DeviceProxy = None
     currentStepsize = 0.1
-    scan_wait_time = 0.3 # in second
-    relock_timeinterval = 20 # in second
     lockedColor = '#80ff80'
     unlockedColor = '#ff8080'
     threshold = 0
+    scan_wait_time = 0.3 # in second
+    relock_timeinterval = 20 # in second
     
     updateID = np.random.randint(0, 2**31 - 1)
     
@@ -367,7 +367,7 @@ class CurrentControllerClient(QtWidgets.QGroupBox):
             # find scanf
             self.list_moncurrent_diff = [round(j-i, 2) for i,j in zip(self.list_moncurrent[:-1], self.list_moncurrent[1:])]
             scanfIndex = np.array(self.list_moncurrent_diff).argmin()
-            self.scanf = round(self.list_scan[scanfIndex], 2) + 0.1
+            self.scanf = round(self.list_scan[scanfIndex], 2) + 0.2
         
             # find scani
             scaniIndex = 0
@@ -375,8 +375,8 @@ class CurrentControllerClient(QtWidgets.QGroupBox):
                 if self.list_moncurrent[i] < self.list_moncurrent[i+4]:
                     scaniIndex = i
                     break;
-            self.scani = round(self.list_scan[scaniIndex] + 0.3, 2) 
-            self.threshold = int((self.list_moncurrent[scanfIndex] + self.list_moncurrent[scaniIndex])/2)
+            self.scani = round(self.list_scan[scaniIndex] + 0.2, 2) 
+            self.threshold = int((self.list_moncurrent[scanfIndex] + self.list_moncurrent[scanfIndex + 2])/2)
                     
             self.currentDT = datetime.datetime.now()
             self.file_name = self.name + '_' + self.currentDT.strftime("%H_%M_%S") + '.png'
@@ -387,11 +387,13 @@ class CurrentControllerClient(QtWidgets.QGroupBox):
             self.reactor.callFromThread(self.displayScanI, self.scani)
             self.reactor.callFromThread(self.displayScanF, self.scanf)
             self.reactor.callFromThread(self.displayThreshold, self.threshold)
+            self.getPower()
             self.list_lock = self.lockListGen(self.scani, self.scanf)
             
             print('{} scan finished!'.format(self.name))
             print('{} locked points: {} mA, {} mA, and threshold {} uA.'.format(self.name, self.scani, self.scanf, self.threshold))
-            
+#            print(self.list_x)
+#            print(self.list_y)
         else:
             self.getPower()
             print('Turn on Laser first!')
@@ -430,32 +432,68 @@ class CurrentControllerClient(QtWidgets.QGroupBox):
                     self.relock_task = task.LoopingCall(self.startRelock)
                     self.relock_task.start(self.relock_timeinterval)
     
+#    def startRelock(self):
+#        def get_input():
+#            mon = self.device.moncurrent
+#            return mon 
+#        def check_input(mon):
+#            if self.stop_status == False:
+#                if mon >= self.threshold:
+#                    self.getPower()
+#                    print('{} stays locked.'.format(self.name))
+#                else:
+#                    print('{} has came unlocked.'.format(self.name))
+#                    self.list_lock = self.lockListGen(self.scani, self.scanf)
+#                    for i in self.list_lock:
+#                        self.device.current = i
+#                        time.sleep(self.scan_wait_time)
+#                        print('{} starts relocking: {} mA, {} uA'.format(self.name, i, self.device.moncurrent))
+#                    self.getCurrent()
+#                    self.getPower()
+#
+#            else:
+#                self.relock_status = False
+#                print('{} relock program stopped.'.format(self.name))
+#                self.getRelockStatus()
+#                self.getPower()
+#                self.relock_task.stop()
+#        
+#        return deferToThread(get_input).addCallback(check_input)
+    
     def startRelock(self):
-        def get_input():
-            return self.device.moncurrent
-        def check_input(mon):
-            if self.stop_status == False:
-                if mon >= self.threshold:
-                    print('{} stays locked.'.format(self.name))
-                else:
-                    print('{} has came unlocked.'.format(self.name))
-                    self.list_lock = self.lockListGen(self.scani, self.scanf)
-                    for i in self.list_lock:
-                        self.device.current = i
-                        time.sleep(self.scan_wait_time)
-                        print('{} start relocking, step: {} mA.'.format(self.name, i))
-                    self.getCurrent()
-                    self.getPower()
-
+        def try_lock():
+            if self.i < self.num_stop:
+                self.device.current = self.list_lock[self.i]
+                print('{} starts relocking: {} mA, {} uA'.format(self.name, self.list_lock[self.i], self.device.moncurrent))
+                self.i = self.i+ 1
             else:
-                self.relock_status = False
-                print('{} relock program stopped.'.format(self.name))
-                self.getRelockStatus()
+                self.getCurrent()
                 self.getPower()
-                self.relock_task.stop()
+                self.try_relock_task.stop()
+                
         
-        return deferToThread(get_input).addCallback(check_input)
-          
+        if self.stop_status == False:
+            mon = self.device.moncurrent
+            if mon >= self.threshold:
+                print('{} stays locked.'.format(self.name))
+                self.getPower()
+            else:
+                print('{} has came unlocked.'.format(self.name))
+                self.list_lock = self.lockListGen(self.scani, self.scanf)
+                self.num_stop = len(self.list_lock)
+                self.i = 0
+                self.try_relock_task = task.LoopingCall(try_lock)
+                self.try_relock_task.start(self.scan_wait_time)
+                self.getPower()
+
+        else:
+            self.relock_status = False
+            print('{} relock program stopped.'.format(self.name))
+            self.getRelockStatus()
+            self.getPower()
+            self.relock_task.stop()
+            
+        
     def onStop(self):
         if self.relock_status == True:
             self.stop_status = True
@@ -501,7 +539,7 @@ if __name__ == '__main__':
     class BlueSlave2Client(CurrentControllerClient):
         name = 'Blue Slave 2'
         DeviceProxy = BlueSlave2Proxy
-    
+
     class BlueSlave3Client(CurrentControllerClient):
         name = 'Blue Slave 3'
         DeviceProxy = BlueSlave3Proxy
