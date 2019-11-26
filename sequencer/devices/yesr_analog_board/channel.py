@@ -5,7 +5,7 @@ from sequencer.devices.yesr_analog_board.ramps import RampMaker
 class YeSrAnalogChannel(object):
     channel_type = 'analog'
     dac_voltage_range = (-10.0, 10.0)
-    dac_bits = 16
+    dac_bits = 13
     sequence = None
     programmable_sequence = None
 
@@ -22,7 +22,7 @@ class YeSrAnalogChannel(object):
     def set_board(self, board):
         self.board = board
         self.board_name = board.name
-        self.board_loc = board.name.upper() + str(self.loc).zfill(2)
+        self.board_loc = board.name.upper() + str(self.loc)
         self.key = self.name + '@' + self.board_loc
     
     def set_sequence(self, sequence):

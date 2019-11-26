@@ -1,7 +1,7 @@
 import numpy as np
 
-def seconds_to_ticks(time, clk):
-    return  int(round(time * clk))
+def time_to_ticks(interval, time):
+    return  int(round(time/interval))
 
 def volts_to_bits(voltage, voltage_range, dac_bits):
     min_voltage = min(voltage_range)

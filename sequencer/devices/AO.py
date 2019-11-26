@@ -11,16 +11,16 @@ class AO(YeSrAnalogBoard):
 #    okfpga_device_id = '1'
 
     autostart = True
-    is_master  =False
+    is_master = False
     
     channels = [
-        YeSrAnalogChannel(loc= 0, name='MOT coils', mode='auto', manual_output=0.0, voltage_range=(-7.0, 0)),
-        YeSrAnalogChannel(loc= 1, name='Red MOT Freq', mode='auto', manual_output=0.0, voltage_range=(-1.0, 1.0)),
-        YeSrAnalogChannel(loc= 2, name='Red MOT Int', mode='auto', manual_output=0.0, voltage_range=(-1.0, 1.0)),
+        YeSrAnalogChannel(loc=0, name='MOT coils', mode='auto', manual_output=0.0, voltage_range=(-7.0, 0)),
+        YeSrAnalogChannel(loc=1, name='Red MOT Freq', mode='auto', manual_output=0.0, voltage_range=(-1.0, 1.0)),
+        YeSrAnalogChannel(loc=2, name='Red MOT Int', mode='auto', manual_output=0.0, voltage_range=(-1.0, 1.0)),
         ]
     
-    def initialize(self, config):
-        YeSrAnalogBoard.initialize(self, config)
+#    def initialize(self, config):
+#        YeSrAnalogBoard.initialize(self, config)
         
         
 Device = AO  #To be loaded by device server

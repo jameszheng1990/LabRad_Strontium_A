@@ -4,65 +4,56 @@ import json
 import os
 import time
 
-import sys
-sys.path.append(os.getenv('PROJECT_LABRAD_TOOLS_PATH'))
-
 from device_server.device import DefaultDevice
 from sequencer.devices.yesr_sequencer_board.helpers import time_to_ticks
 from sequencer.devices.yesr_sequencer_board.helpers import combine_sequences
-from ok_server.proxy import OKProxy
+from ni_server.proxy import NIProxy
 from sequencer.exceptions import ChannelNotFound
 
 class YeSrSequencerBoard(DefaultDevice):
     sequencer_type = None
     
-    ok_servername = None
-    ok_interface = None
-    ok_bitfilename = None
+    ni_servername = 'ni'
+    ni_interface = None
 
     conductor_servername = 'conductor'
 
     channels = None
         
-    mode_wire = 0x00
-    sequence_pipe = 0x80
-    clk = 50e6 # [Hz]
+    clk = 10e6 # [Hz]
     
     sequence_directory = 'C:\\LabRad\\SrSequences\\{}\\'
     subsequence_names = None
     sequence = None
     raw_sequene = None
     is_master = False
-    master_channel = 'Trigger@D15'
+    master_channel = 'Trigger@D17'
     run_priority = 0
 
     loading = False
     running = False
     sequence = None
     sequence_bytes = None
-    max_sequence_bytes = 24000
-
+    max_sequence_bytes = 24000*100
+    
     def initialize(self, config):
         for key, value in config.items():
             setattr(self, key, value)
-
+        
         for channel in self.channels:
             channel.set_board(self)
         
         self.connect_to_labrad()
-#        self.ok_server = self.cxn[self.ok_servername]
-#        ok = OKProxy(self.ok_server)
-#        
-#        fp = ok.okCFrontPanel()
-#        fp.OpenBySerial(self.ok_interface)
-#        fp.ConfigureFPGA(self.ok_bitfilename)
-#        self.fp = fp
         
+        self.ni_server = self.cxn[self.ni_servername]
+        ni_proxy = NIProxy(self.ni_server)
+        ni = ni_proxy.niCFrontPanel()
+        self.ni = ni
+                
         self.update_mode()
         self.update_channel_modes()
         self.update_channel_manual_outputs()
         
-
     def load_sequence(self, sequencename):
         for i in range(365):
             day = date.today() - timedelta(i)
@@ -160,8 +151,9 @@ class YeSrSequencerBoard(DefaultDevice):
             self.save_sequence(subsequence, subsequence_name, tmpdir)
     
     
-    def set_sequence(self, subsequence_names):
+    def set_sequence(self,device_name, subsequence_names):
         self.subsequence_names = subsequence_names
+        self.device_name = device_name
         
         subsequence_list = []
         for subsequence_name in subsequence_names:
@@ -176,18 +168,20 @@ class YeSrSequencerBoard(DefaultDevice):
    
     def set_raw_sequence(self, raw_sequence):
         self.raw_sequence = raw_sequence
-        parameter_names = self.get_sequence_parameter_names(raw_sequence)
-        parameter_values = self.get_sequence_parameter_values(parameter_names)
-        programmable_sequence = self.substitute_sequence_parameters(raw_sequence, parameter_values)
-        sequence_bytes = self.make_sequence_bytes(programmable_sequence)
-        if len(sequence_bytes) > self.max_sequence_bytes:
-            message = "sequence of {} bytes exceeds maximum length of {} bytes".format(len(sequence_bytes), self.max_sequence_bytes)
-            raise Exception(message)
-        self.sequence_bytes = sequence_bytes
+#        parameter_names = self.get_sequence_parameter_names(raw_sequence)
+#        parameter_values = self.get_sequence_parameter_values(parameter_names)
+#        programmable_sequence = self.substitute_sequence_parameters(raw_sequence, parameter_values)
+        sequence_bytes = self.make_sequence_bytes(self.raw_sequence)
+
+        self.sequence_bytes = sequence_bytes  # sequence_bytes are NI_programmable codes
         
-        self.set_loading(True)
-        self.fp.WriteToPipeIn(self.sequence_pipe, self.sequence_bytes)
-        self.set_loading(False)
+        if self.device_name == 'AO' :
+#            self.ni.write_ao_sequence(self.sequence_bytes)
+            print('write AO')
+        
+        elif self.device_name == 'DIO':
+#            self.ni.write_do_sequence(self.sequence_bytes)
+            print('write DO')
     
     def get_raw_sequence(self):
         return self.raw_sequence
@@ -240,7 +234,8 @@ class YeSrSequencerBoard(DefaultDevice):
         """ to be implemented by child class """
     
     def update_mode(self):
-        mode_word = 0 | 2 * int(self.loading) | self.running
+        pass
+#        mode_word = 0 | 2 * int(self.loading) | self.running
 #        self.fp.SetWireInValue(self.mode_wire, mode_word)
 #        self.fp.UpdateWireIns()
 

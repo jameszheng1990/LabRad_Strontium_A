@@ -17,17 +17,13 @@ class YeSrDigitalChannel(object):
         self.board = board
         self.board_name = board.name
         row, column = self.loc
-        self.board_loc = str(row) + str(column).zfill(2)
+        self.board_loc = str(row) + str(column).zfill(1)
         self.key = self.name + '@' + self.board_loc
     
     def set_sequence(self, sequence):
         self.sequence = sequence
     
     def get_info(self):
-        """
-        This function is used to get information from all the parameters, such as "channel_type = digital",
-        "invert = false" etc 
-        """
         info = {x: getattr(self, x) for x in dir(self) if x[0] != '_'}
         info = json.loads(json.dumps(info, default=lambda x: None))   #Translation to items-able
         info = {k: v for k, v in info.items() if v is not None}       #Filter out non-None items

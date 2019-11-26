@@ -1,6 +1,8 @@
+from sequencer.devices.yesr_analog_board.timing import config
 import numpy as np
 
-DT_TICK = 2 * (2 * 8.) / 50e6 # time for one clock tick
+rate = config().set_rate()
+DT_TICK = 2*1/rate # time for one clock tick
 
 MAX_DT = DT_TICK / 2 * 2**30 - 1
 
