@@ -179,12 +179,13 @@ class SequencerServer(DeviceServer):
 
     def _sequence(self, request={}):
         if request == {}:
+            self.devices = dict(sorted(self.devices.items(), key=lambda x: x[0].lower())) # Make sure Run AO first, then DIO
             request = {device_name: None for device_name in self.devices}
         response = {}
         for device_name, device_request in request.items():
             device = self._get_device(device_name)
             if device_request is not None:
-                device.set_sequence(device_request)
+                device.set_sequence(device_name, device_request)
             device_response = device.get_sequence()
             response.update({device_name: device_response})
         self._send_update({'sequence': response})
