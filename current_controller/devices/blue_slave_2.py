@@ -2,49 +2,44 @@ import numpy as np
 import time
 
 class BlueSlave2(object):
-    _visa_address = 'ASRL5::INSTR'
-    _baud_rate = 38400
-    _write_termination = '\n'
-    _read_termination = '\n'
+    _serial_port = 'COM5'
+    _serial_baudrate = 38400
+    _serial_timeout = 1
+    _serial_termination = '\n'
     _current_range = (0.0, 140)
     _relock_stepsize = 0.1
     _locked_threshold = 0
-    _scani = 128
-    _scanf = 124
     
     def __init__(self, **kwargs):
         for key, value in kwargs.items():
             setattr(self, key, value)
-        if 'pyvisa' not in globals():
-            global pyvisa
-            import pyvisa
-        rm = pyvisa.ResourceManager()
-        self._inst = rm.open_resource(self._visa_address)
-        self._inst.baud_rate = self._baud_rate
-        self._inst.write_termination = self._write_termination
-        self._inst.read_termination = self._read_termination
-
+        if 'serial' not in globals():
+            global serial
+            import serial
+        self._ser = serial.Serial(self._serial_port)
+        self._ser.timeout = self._serial_timeout
+        self._ser.baudrate = self._serial_baudrate
+        
     def _write_to_slot(self, command):
-        self._inst.write(command)
+        self._ser.write(bytes(command+self._serial_termination, 'utf-8'))
     
     def _query_to_slot(self, command):
-        response = self._inst.query(command)
-        return response
+        self._ser.write(bytes(command+self._serial_termination, 'utf-8'))
+        response = self._ser.readline()
+        return response.decode("utf-8").strip()
     
     @property
-    # Used as: read-current = xxx().current #
     def current(self):
         command = 'LAS:LDI?'
         response = self._query_to_slot(command)
         return float(response)
-    
+        
     @current.setter
-    # Used as: xxx.current = current set-point #
-    def current(self, request):
+    def current(self, current):
         min_current = self._current_range[0]
         max_current = self._current_range[1]
-        request = sorted([min_current, request, max_current])[1]
-        command = 'LAS:LDI {}'.format(request)
+        current = sorted([min_current, current, max_current])[1]
+        command = 'LAS:LDI {}'.format(current)
         self._write_to_slot(command)
     
     @property
@@ -58,8 +53,7 @@ class BlueSlave2(object):
     def moncurrent(self):
         command = 'LAS:MDI?'
         response = self._query_to_slot(command)
-        moncurrent = float(response)
-        return moncurrent
+        return float(response)
 
     @property
     def state(self):
@@ -85,14 +79,13 @@ class BlueSlave2(object):
         self.current = current
 
 class BlueSlave2Proxy(BlueSlave2):
-    _visa_servername = 'visa'
+    _serial_servername = 'serial'
 
     def __init__(self, cxn=None, **kwargs):
-        from visa_server.proxy import VisaProxy
+        from serial_server.proxy import SerialProxy
         if cxn == None:
             import labrad
             cxn = labrad.connect()
-        global visa
-        visa_server = cxn[self._visa_servername]
-        visa = VisaProxy(visa_server)
+        global serial
+        serial = SerialProxy(cxn[self._serial_servername])
         BlueSlave2.__init__(self, **kwargs)
