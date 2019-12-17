@@ -1,3 +1,5 @@
+import json
+
 class NIProxy(object):
     def __init__(self, server):
         self._server = server
@@ -34,16 +36,39 @@ class niFrontPanelProxy(object):
     5. Perform any application-specific communication with the FPGA using the 
     FPGA Communication methods.    
     """
+
+    
     def __init__(self, server):
         self._server = server
-
+    
+    def Is_Triggered(self):
+        return self._server.is_triggered()
+    
+    def Trigger_On(self):
+        self._server.trigger_on()
+        
+    def Trigger_Off(self):
+        self._server.trigger_off()
+    
+    def Is_Triggered_Once(self):
+        return self._server.is_triggered_once()
+    
+    def Trigger_Once_On(self):
+        self._server.trigger_once_on()
+        
+    def Trigger_Once_Off(self):
+        self._server.trigger_once_off()
+        
+    def Write_CLK_Manual(self, boolean):
+        self._server.write_clk_manual(boolean)
+        
     def Write_DO_Manual(self, boolean):
         """ Writes a manual DO to Dev1, for all channels
 
         Args:
             boolean (bool): The output
         """ 
-        return self._server.write_do_manual(boolean)
+        self._server.write_do_manual(boolean)
 
     def Write_AO_Manual(self, voltage, port):
         """ Writes a manual AO voltage to Dev2.
@@ -52,22 +77,54 @@ class niFrontPanelProxy(object):
             voltage (float): The output voltage
             port (int): address of port
         """ 
-        return self._server.write_ao_manual(voltage, port)
+        self._server.write_ao_manual(voltage, port)
 
     def Write_DO_Sequence(self, sequence):
         """ Writes a DO sequence to Dev1.
 
         Args:
             sequence (str): The sequence must be in string at this level,
-            i.e. [[...],...,[...]]
+            i.e. '[[...],...,[...]]'
         """
-        return self._server.write_do_sequence(sequence)
+        sequence_json = json.dumps(sequence)
+        self._server.write_do_sequence(sequence_json)
     
     def Write_AO_Sequence(self, sequence):
         """ Writes a AO sequence to Dev2.
 
         Args:
             sequence (str): The sequence must be in string at this level,
-            i.e. [[...],...,[...]]
+            i.e. '[[...],...,[...]]'
         """
-        return self._server.write_ao_sequence(sequence)
+        sequence_json = json.dumps(sequence)
+        self._server.write_ao_sequence(sequence_json)
+    
+    def Write_CLK_Sequence(self, sequence):
+        """Writes the Clk sequence to Dev0.
+        """
+        sequence_json = json.dumps(sequence)
+        self._server.write_clk_sequence(sequence_json)
+    
+    def Start_AO_Sequence(self):
+        """
+        Start AO sequences for conductor.
+        """
+        self._server.start_ao_sequence()
+    
+    def Start_DO_Sequence(self):
+        """
+        Start DO sequences for conductor.
+        """
+        self._server.start_do_sequence()
+
+    def Start_CLK_Sequence(self):
+        """
+        Start CLK sequences for conductor.
+        """
+        self._server.start_clk_sequence()
+    
+    def Reset_Devices(self):
+        """
+        Reset all devices, stop all runnig tasks.
+        """
+        self._server.reset_devices()
