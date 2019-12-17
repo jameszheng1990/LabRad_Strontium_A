@@ -180,16 +180,16 @@ class AnalogVoltageManualClient(QtWidgets.QGroupBox):
     def disable(self):
         self.setDisabled(True)
     
-    @inlineCallbacks
-    def closeEvent(self, event):
-        sequencer = yield self.cxn.get_server(self.sequencer_servername)
-        yield sequencer.signal__update(self.sequencer_update_id)
-        yield sequencer.removeListener(listener=self.receive_sequencer_update, source=None,
-                                    ID=self.sequencer_update_id)
-        if self.parent is None:
-            self.reactor.stop()
-
-        event.accept()
+#    @inlineCallbacks
+#    def closeEvent(self, event):
+#        sequencer = yield self.cxn.get_server(self.sequencer_servername)
+#        yield sequencer.signal__update(self.sequencer_update_id)
+#        yield sequencer.removeListener(listener=self.receive_sequencer_update, source=None,
+#                                    ID=self.sequencer_update_id)
+#        if self.parent is None:
+#            self.reactor.stop()
+#
+#        event.accept()
 
 #if __name__ == '__main__':
 #    import sys

@@ -19,16 +19,14 @@ class YeSrSequencerBoard(DefaultDevice):
     conductor_servername = 'conductor'
 
     channels = None
-        
-    clk = 10e6 # [Hz]
     
     sequence_directory = 'C:\\LabRad\\SrSequences\\{}\\'
     subsequence_names = None
     sequence = None
     raw_sequene = None
     is_master = False
-    master_channel = 'Trigger@D17'
-    run_priority = 0
+    master_channel = 'Trigger@D15'
+    run_priority = 0    
 
     loading = False
     running = False
@@ -47,14 +45,13 @@ class YeSrSequencerBoard(DefaultDevice):
         
         self.ni_server = self.cxn[self.ni_servername]
         ni_proxy = NIProxy(self.ni_server)
-        ni = ni_proxy.niCFrontPanel()
-        self.ni = ni
+        self.ni = ni_proxy.niCFrontPanel()
                 
         self.update_mode()
         self.update_channel_modes()
         self.update_channel_manual_outputs()
         
-    def load_sequence(self, sequencename):
+    def load_sequence(self, sequencename):  # Will trace back for the sequence, starting from Today, yesterday and so on...
         for i in range(365):
             day = date.today() - timedelta(i)
             sequencepath = self.sequence_directory.format(day.strftime('%Y%m%d')) + sequencename
@@ -151,7 +148,7 @@ class YeSrSequencerBoard(DefaultDevice):
             self.save_sequence(subsequence, subsequence_name, tmpdir)
     
     
-    def set_sequence(self,device_name, subsequence_names):
+    def set_sequence(self, device_name, subsequence_names):
         self.subsequence_names = subsequence_names
         self.device_name = device_name
         
@@ -168,21 +165,31 @@ class YeSrSequencerBoard(DefaultDevice):
    
     def set_raw_sequence(self, raw_sequence):
         self.raw_sequence = raw_sequence
-#        parameter_names = self.get_sequence_parameter_names(raw_sequence)
-#        parameter_values = self.get_sequence_parameter_values(parameter_names)
-#        programmable_sequence = self.substitute_sequence_parameters(raw_sequence, parameter_values)
-        sequence_bytes = self.make_sequence_bytes(self.raw_sequence)
-
-        self.sequence_bytes = sequence_bytes  # sequence_bytes are NI_programmable codes
+        parameter_names = self.get_sequence_parameter_names(raw_sequence)
+        parameter_values = self.get_sequence_parameter_values(parameter_names)
+        programmable_sequence = self.substitute_sequence_parameters(raw_sequence, parameter_values)
         
-        if self.device_name == 'AO' :
-#            self.ni.write_ao_sequence(self.sequence_bytes)
-            print('write AO')
-        
+        if self.device_name == 'AO':
+            sequence_bytes = self.make_sequence_bytes(self.raw_sequence)
+            
+            self.set_loading(True)
+            self.ni.Write_AO_Sequence(sequence_bytes)
+            self.set_loading(False)
+         
         elif self.device_name == 'DIO':
-#            self.ni.write_do_sequence(self.sequence_bytes)
-            print('write DO')
-    
+            sequence_bytes = self.make_sequence_bytes(self.raw_sequence)
+
+            self.set_loading(True)
+            self.ni.Write_DO_Sequence(sequence_bytes)
+            self.set_loading(False)
+            
+        elif self.device_name == 'Z_CLK':
+            sequence_bytes = self.make_clk_sequence(programmable_sequence)
+            
+            self.set_loading(True)
+            self.ni.Write_CLK_Sequence(sequence_bytes)
+            self.set_loading(False)
+            
     def get_raw_sequence(self):
         return self.raw_sequence
     
@@ -233,24 +240,39 @@ class YeSrSequencerBoard(DefaultDevice):
     def make_sequence_bytes(self, sequence):
         """ to be implemented by child class """
     
+    def make_clock_sequence(self, sequence):
+        """ to be implemented by child class """
+    
     def update_mode(self):
         pass
 #        mode_word = 0 | 2 * int(self.loading) | self.running
 #        self.fp.SetWireInValue(self.mode_wire, mode_word)
 #        self.fp.UpdateWireIns()
-
+            
     def set_loading(self, loading):
         if loading is not None:
             self.loading = loading
-            self.update_mode()
+            # self.update_mode()
     
     def get_loading(self):
         return self.running
     
-    def set_running(self, running):
-        if running is not None:
+    def set_running(self, device_name, running):
+        if running is True:
+            if device_name == 'AO':
+                self.running = running
+                self.ni.Start_AO_Sequence()
+            
+            if device_name == 'DIO':
+                self.running = running
+                self.ni.Start_DO_Sequence()
+
+            if device_name == 'Z_CLK':
+                self.running = running
+                self.ni.Start_CLK_Sequence()
+                
+        else:
             self.running = running
-            self.update_mode()
-    
+            
     def get_running(self):
         return self.running

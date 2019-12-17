@@ -100,8 +100,8 @@ class RampColumn(QtWidgets.QGroupBox):
         self.setFixedWidth(30+90+4)
 
         self.ramp_select.currentIndexChanged.connect(self.select_from_stack)
-        rs_def_index = self.ramp_select.findText('lin')
-        self.ramp_type = 'lin'
+        rs_def_index = self.ramp_select.findText('s')
+        self.ramp_type = 's'
         self.ramp_select.setCurrentIndex(rs_def_index)
 
     def select_from_stack(self):
@@ -181,7 +181,7 @@ class AnalogVoltageEditor(QtWidgets.QDialog):
 
         self.conductor_update_id = np.random.randint(0, 2**31 - 1)
 
-        self.loading = False
+        self.loading = False        
         self.connect()
    
     @inlineCallbacks
@@ -284,8 +284,8 @@ class AnalogVoltageEditor(QtWidgets.QDialog):
             ramp_type = s['type']
             c.show()
             c.ramp_select.setCurrentIndex(c.ramp_select.findText(ramp_type))
-        for k in c.parameter_widgets[ramp_type].pboxes.keys():
-            c.parameter_widgets[ramp_type].pboxes[k].display(s[k])
+            for k in c.parameter_widgets[ramp_type].pboxes.keys():
+                c.parameter_widgets[ramp_type].pboxes[k].display(s[k]) # Plot Sequence in Analog Boxes
                 
         self.loading = False
         self.replot()

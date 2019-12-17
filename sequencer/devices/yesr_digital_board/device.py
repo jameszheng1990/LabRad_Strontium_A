@@ -1,20 +1,38 @@
 import json
-import os
-import sys
-sys.path.append(os.getenv('PROJECT_LABRAD_TOOLS_PATH'))
+import numpy as np
 
 from device_server.device import DefaultDevice
 
 from sequencer.devices.yesr_sequencer_board.device import YeSrSequencerBoard
 from sequencer.devices.yesr_digital_board.helpers import time_to_ticks
 from sequencer.devices.yesr_digital_board.helpers import get_output
-from sequencer.devices.yesr_digital_board.timing import config
+from sequencer.devices.timing import config
+import itertools
+from functools import reduce
 
 T_TRIGGER = 2e-3
 
-clk = config().set_clk()
-rate = config().set_rate()
-interval = 1/rate
+clk_rate = config().set_clk()
+clk_interval = 1/clk_rate         # Clk interval, which is basically half of sample interval
+clk_key = config().get_key()
+
+do_rate = config().set_do_rate()
+do_interval = 1/do_rate      # DO sample interval, twice of the clock sample interval
+
+def get_clk_function(sequence):
+    seq_list = [v for s, v in sequence.items()]
+    analog_list = [i for i in seq_list if 'type' in i[0]]
+    type_list = [[type_to_bool(j['type'])  for j in i] for i in analog_list]
+    type_list = list(map(list, zip(*type_list))) # Transpose
+    clk_list = list(map(bool, [reduce(lambda x, y: x*y, i) for i in type_list])) # ONLY when all rows are 's' will return True 
+            
+    return clk_list # False means variable clock will not apply on the sequence.
+
+def type_to_bool(data):
+    if data == 's':
+        return True
+    else:
+        return False
 
 class YeSrDigitalBoard(YeSrSequencerBoard):
     sequencer_type = 'digital'
@@ -43,6 +61,8 @@ class YeSrDigitalBoard(YeSrSequencerBoard):
         values_bool = list(map(bool, values))
 #        print(values_bool) # For test, result shown in back-end CMD (visa server)
         self.ni.Write_DO_Manual(values_bool)
+        
+        self.ni.Write_CLK_Manual(False) # CLK always set to be fasle
     
     def default_sequence_segment(self, channel, dt):
         return {'dt': dt, 'out': channel.manual_output}
@@ -51,23 +71,78 @@ class YeSrDigitalBoard(YeSrSequencerBoard):
         #c.key: channel 
         #everytime you output all 32 channels together
         
-        programmable_sequence = []
+        def to_bool_inv(out, invert):
+            if invert == True:
+                return not bool(out)
+            else:
+                return bool(out)
+        
+        def variable_out(out, dt, clk_out):
+            if clk_out == True: # Apply Variable Clock
+                return [out]
+            else:
+                ticks = time_to_ticks(do_interval, dt)
+                return [out]*ticks
+        
+        def type_to_bool(data):
+            if data == 's':
+                return True
+            else:
+                return False
+
+        clk_function = get_clk_function(sequence)
+        
+        ni_sequence = []
         
         for c in self.channels:
-            total_ticks = 0
-            channel_seq = []
-            for s in sequence[c.key]:
-                ticks = time_to_ticks(interval, s['dt'])
-                if c.invert == True:
-                    s_to_seq = [not bool(s['out'])]*ticks
-                else:
-                    s_to_seq = [bool(s['out'])]*ticks
-                channel_seq.extend(s_to_seq)  # Maybe need Bool
-                total_ticks += ticks
-                                
-            programmable_sequence.append(channel_seq) 
-
-#        print(programmable_sequence)
-#        print(total_ticks)
-        return programmable_sequence  # in Boolean
+            out_list = [to_bool_inv(s['out'], c.invert) for s in sequence[c.key]]
+            dt_list = [s['dt'] for s in sequence[c.key]]
+            var_out = list(map(variable_out, out_list, dt_list, clk_function))
+            var_out = list(itertools.chain.from_iterable(var_out))
+            ni_sequence.append(var_out)
+        return ni_sequence  # in Boolean
     
+    def make_clk_sequence(self, sequence):
+        # c.key: channel 
+        # If clk.out = 1, use high-precision sample clock (1010...), otherwise use (000...).
+        # Every timing edges must be ended with "0". 
+        # CLK rate should be twice the Sample Rate (for DIO, AO)
+        
+        def clk_ticks(o, dt):
+            tick = int(round(dt/clk_interval))
+            if tick < 2:
+                print('dt too small, minimum resolution is 2*1/CLK_rate !')
+            else:
+                if o == False:  # Do not apply Var Clk
+                    a = [True, False] *int(round(tick/2))
+                    return a
+                elif o == True:  # Apply Var Clk
+                    a = [True]
+                    b = [False]*int(tick-1)
+                    a.extend(b)
+                    return a
+        
+        def get_dt(sequence):
+            seq_list = [v for s, v in sequence.items()]
+            analog_list = [i for i in seq_list if 'type' in i[0]]
+            dt_list = [j['dt'] for j in analog_list[0]]
+            
+            return dt_list
+        
+        clk_sequence = []
+        
+        clk_outlist = get_clk_function(sequence)
+        clk_dtlist = get_dt(sequence)
+        
+        for c in self.channels:
+            if c.key != clk_key:
+                print("Wrong CLK channel, please check 'Z_CLK' board.")
+            else:
+                a = [clk_ticks(clk_outlist[i], clk_dtlist[i]) 
+                    for i in range(len(clk_outlist))]
+                
+        clk_sequence = list(itertools.chain(*a))
+        # Should end with one more [True, False] edge
+        clk_sequence.extend([True,False])
+        
+        return clk_sequence  # in Boolean

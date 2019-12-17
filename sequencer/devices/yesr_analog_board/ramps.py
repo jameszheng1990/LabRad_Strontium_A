@@ -1,7 +1,7 @@
-from sequencer.devices.yesr_analog_board.timing import config
+from sequencer.devices.timing import config
 import numpy as np
 
-rate = config().set_rate()
+rate = config().set_ao_rate()
 DT_TICK = 2*1/rate # time for one clock tick
 
 MAX_DT = DT_TICK / 2 * 2**30 - 1
@@ -34,7 +34,8 @@ def exp_ramp(p, ret_seq=False):
     p['a'] = (p['vf'] - p['vi']) / (np.exp(p['dt'] / p['tau']) - 1)
     p['c'] = p['vi'] - p['a']
     v_ideal = lambda t: G(p['ti'], p['tf'])(t) * (p['a'] * np.exp((t - p['ti']) / p['tau']) + p['c'])
-    t_pts = np.linspace(p['ti'], p['tf'] - 2e-9, p['pts'] + 1)
+#    t_pts = np.linspace(p['ti'], p['tf'] - 2e-9, p['pts'] + 1)
+    t_pts = np.linspace(p['ti'], p['tf'], p['pts'] + 1)
     v_pts = v_ideal(t_pts)
     sseq = [{'type': 'lin', 'ti': ti, 'tf': tf, 'vi': vi, 'vf': vf} 
             for ti, tf, vi, vf in zip(t_pts[:-1], t_pts[1:], v_pts[:-1], v_pts[1:])]
@@ -61,13 +62,15 @@ class SRamp(object):
         """
         p = self.p
         return [
+#                {
+#                    'dt': DT_TICK, 
+#                    'dv': p['vf'] - p['_vi']
+#                }, 
                 {
-                    'dt': DT_TICK, 
-                    'dv': p['vf'] - p['_vi']
-                }, 
-                {
-                    'dt': p['dt'] - DT_TICK, 
-                    'dv': 0
+#                    'dt': p['dt'] - DT_TICK, 
+                    'dt': p['dt'] , 
+                    'dv': 0 , 
+                    'clk': p['clk']
                 }
             ]
 
@@ -89,7 +92,8 @@ class LinRamp(object):
         return [
                 {
                     'dt': p['dt'], 
-                    'dv': p['vf'] - p['_vi']
+                    'dv': p['vf'] - p['_vi'],
+                    'clk': p['clk']
                 }
             ]
 
@@ -111,13 +115,16 @@ class SLinRamp(object):
         """
         p = self.p
         return ([
+#                {
+#                    'dt': DT_TICK, 
+#                    'dv': p['vi'] - p['_vi']
+#                }, 
                 {
-                    'dt': DT_TICK, 
-                    'dv': p['vi'] - p['_vi']
-                }, 
-                {
-                    'dt': p['dt'] - DT_TICK, 
-                    'dv': p['vf'] - p['vi']
+#                    'dt': p['dt'] - DT_TICK, 
+#                    'dv': p['vf'] - p['vi']
+                    'dt': p['dt'], 
+                    'dv': p['vf'] - p['vi'],
+                    'clk': p['clk']
                 }
             ])
 
@@ -139,7 +146,7 @@ class ExpRamp(object):
         """
         p = self.p
         seq = exp_ramp(p, ret_seq=True)
-        return [{'dt': s['tf'] - s['ti'], 'dv': s['vf'] - s['vi']} for s in seq]
+        return [{'dt': s['tf'] - s['ti'], 'dv': s['vf'] - s['vi'], 'clk': s['clk']} for s in seq]
 
 class SExpRamp(object):
     required_parameters = [
@@ -160,26 +167,31 @@ class SExpRamp(object):
         """
         p = self.p
         seq = exp_ramp(p, ret_seq=True)
-        DT_TICK = 18 / 48e6
-        return ([
-                {
-                    'dt': DT_TICK, 
-                    'dv': p['vi'] - p['_vi'],
-                }
-           ] 
-           + [
-                {
-                    'dt': s['tf'] - s['ti'] - DT_TICK, 
-                    'dv': s['vf'] - s['vi'],
-                } 
-                for s in seq[:1]
-           ]
-           + [
+#        DT_TICK = 18 / 48e6
+        return (
+#                [
+#                {
+#                    'dt': DT_TICK, 
+#                    'dv': p['vi'] - p['_vi'],
+#                }
+#           ] 
+#           + 
+#           [
+#                {
+#                    'dt': s['tf'] - s['ti'] - DT_TICK, 
+#                    'dv': s['vf'] - s['vi'],
+#                } 
+#                for s in seq[:1]
+#           ]
+#           +
+           [
                 {
                     'dt': s['tf'] - s['ti'], 
                     'dv': s['vf'] - s['vi'],
+                    'clk': s['clk']
                 } 
-                for s in seq[1:]
+#                for s in seq[1:]
+                for s in seq[:]
            ])
 
 class RampMaker(object):
@@ -237,9 +249,9 @@ class RampMaker(object):
         """
         ramps = np.concatenate([self.available_ramps[s['type']](s).to_lin() 
             for s in self.sequence]).tolist()
-
         t = 0
         v = 0
+        
         for ramp in ramps:
             ramp['vi'] = v
             ramp['ti'] = t
@@ -247,9 +259,10 @@ class RampMaker(object):
             t += ramp['dt']
             ramp['vf'] = v
             ramp['tf'] = t
-        return compress_ramps(ramps)
+#        return compress_ramps(ramps)
+        return ramps
 
-def compress_ramps(linear_ramps):
+def compress_ramps(linear_ramps): # NOT very useful in Variable Clock.. Could be conflict with Clocks..
     """ if two consequtive ramps have {dt: dt1, dv: 0} and {dt: dt2, dv: 0}, 
         combine them into one ramp {dt: dt1 + dt2, dv: 0}
     """

@@ -57,8 +57,11 @@ class SequencerClient(QtWidgets.QWidget):
     durationrow_height = 20
     analog_height = 50
     max_columns = 100
-    timing_channel = "Trigger@D15" # Needed?
+    
+    timing_channel = "Trigger@D15" 
     master_channel = timing_channel
+    
+    
     digital_colors = ["#ff0000", "#ff7700", "#ffff00", "#00ff00", "#0000ff", "#8a2be2"]
     qt_style = 'Gtk+'
 
@@ -93,9 +96,9 @@ class SequencerClient(QtWidgets.QWidget):
         channel_infos = json.loads(channel_infos_json)
         self.channels = channel_infos
         self.analog_channels = {
-                k: v
-                    for device_name, device_channels in channel_infos.items()
-                    for k, v in device_channels.items()
+                k: v                                                          # dict: {keys, values}
+                    for device_name, device_channels in channel_infos.items() # device_name: DIO/AO
+                    for k, v in device_channels.items()                       # device_channels: infos
                     if v['channel_type'] == 'analog'
                 }
         self.digital_channels = {
@@ -106,7 +109,7 @@ class SequencerClient(QtWidgets.QWidget):
                 }
 
         self.default_sequence = dict(
-            [(nameloc, [{'type': 'lin', 'vf': 0, 'dt': 1}]) 
+            [(nameloc, [{'type': 's', 'vf': 0, 'dt': 1}]) 
                   for nameloc in self.analog_channels]
             + [(nameloc, [{'dt': 1, 'out': 0}]) 
                   for nameloc in self.digital_channels])
@@ -291,31 +294,36 @@ class SequencerClient(QtWidgets.QWidget):
         with open(filepath, 'r') as infile:
             sequence = json.load(infile)
         master_sequence = sequence[self.master_channel]
-        for channel_key, channel_info in self.channels.items():
-            channel_sequence = None
-            matched_key = self.match_sequence_key(sequence, channel_key)
-            if matched_key:
-                channel_sequence = sequence.pop(matched_key)
-            if not channel_sequence:
-                if channel_key in self.analog_channels:
-                    default_sequence_segment = [
-                        {
-                            'dt': s['dt'], 
-                            'vf': channel_info['manual_output'],
-                            'type': 'lin',
-                            }
-                        for s in master_sequence
-                        ]
-                elif channel_key in self.digital_channels:
-                    default_sequence_segment = [
-                        {
-                            'dt': s['dt'], 
-                            'out': channel_info['manual_output'],
-                            }
-                        for s in master_sequence
-                        ]
-            sequence.update({channel_key: channel_sequence})
-
+        for device_name, device_channel in self.channels.items():
+            for channel_key, channel_info in device_channel.items():
+                channel_sequence = None
+                matched_key = self.match_sequence_key(sequence, channel_key)  #Findout which was missed
+                if matched_key:
+                    channel_sequence = sequence.pop(matched_key)
+                if not channel_sequence:
+                    if channel_key in self.analog_channels:
+                        default_sequence_segment = [
+                                {
+                                        'dt': s['dt'], 
+#                                        'vf': channel_info['manual_output'],
+                                        'vf': 0,
+                                        'type': 'lin',
+                                        }
+                                for s in master_sequence
+                                ]
+                        channel_sequence = default_sequence_segment
+                    elif channel_key in self.digital_channels:
+                        default_sequence_segment = [
+                                {
+                                        'dt': s['dt'], 
+#                                        'out': channel_info['manual_output'],
+                                        'out': 0,
+                                        }
+                                for s in master_sequence
+                                ]
+                        channel_sequence = default_sequence_segment
+                sequence.update({channel_key: channel_sequence})
+        
         self.displaySequence(sequence)
         self.loadAndSave.locationBox.setText(filepath)
     
@@ -373,7 +381,7 @@ class SequencerClient(QtWidgets.QWidget):
         def odnc():
             server = yield self.cxn.get_server(self.sequencer_servername)
             board_name = self.digital_channels[channel_name]['board_name']
-            if QtWidgets.qApp.mouseButtons() & QtCore.Qt.RightButton:
+            if QtWidgets.qApp.mouseButtons() & QtCore.Qt.RightButton:  # Right Click
                 request = {board_name: {channel_name: None}}
                 response_json = yield server.channel_modes(json.dumps(request))
                 response = json.loads(response_json)
@@ -383,7 +391,7 @@ class SequencerClient(QtWidgets.QWidget):
                 else:
                     request = {board_name: {channel_name: 'manual'}}
                     yield server.channel_modes(json.dumps(request))
-            elif QtWidgets.qApp.mouseButtons() & QtCore.Qt.LeftButton:
+            elif QtWidgets.qApp.mouseButtons() & QtCore.Qt.LeftButton: # Left_Click
                 request = {board_name: {channel_name: None}}
                 response_json = yield server.channel_manual_outputs(json.dumps(request))
                 response = json.loads(response_json)

@@ -17,7 +17,7 @@ class YeSrDigitalChannel(object):
         self.board = board
         self.board_name = board.name
         row, column = self.loc
-        self.board_loc = str(row) + str(column).zfill(1)
+        self.board_loc = str(row) + str(column).zfill(2)
         self.key = self.name + '@' + self.board_loc
     
     def set_sequence(self, sequence):
