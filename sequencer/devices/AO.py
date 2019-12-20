@@ -14,9 +14,11 @@ class AO(YeSrAnalogBoard):
     is_master = False
     
     channels = [
-        YeSrAnalogChannel(loc=0, name='Red MOT Freq', mode='auto', manual_output=0.0, voltage_range=(-10.0, 10.0)),
-        YeSrAnalogChannel(loc=1, name='Red MOT Int', mode='auto', manual_output=0.0, voltage_range=(-10.0, 10.0)),
-        YeSrAnalogChannel(loc=2, name='MOT coils', mode='auto', manual_output=0.0, voltage_range=(-7.0, 0.0)),
+        YeSrAnalogChannel(loc=0, name='Red A FM', mode='auto', manual_output=0.0, voltage_range=(-10.0, 10.0)),
+        YeSrAnalogChannel(loc=1, name='Red A AM', mode='auto', manual_output=0.0, voltage_range=(-10.0, 10.0)),
+        YeSrAnalogChannel(loc=2, name='MOT coils', mode='auto', manual_output=0.0, voltage_range=(-10.0, 10.0)),
+        YeSrAnalogChannel(loc=3, name='Red B FM', mode='auto', manual_output=0.0, voltage_range=(-10.0, 10.0)),
+        YeSrAnalogChannel(loc=4, name='Red B AM', mode='auto', manual_output=0.0, voltage_range=(-10.0, 10.0)),
         ]
     
 #    def initialize(self, config):

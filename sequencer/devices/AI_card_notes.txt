@@ -1,0 +1,12 @@
+# -*- coding: utf-8 -*-
+"""
+This is just to remind you the the AI channels on Dev0.
+"""
+
+channels = [
+    AI(loc=0, name='Fluorescence PD', voltage_range=(-10.0, 10.0)),
+    AI(loc=1, name='PMT', voltage_range=(-10.0, 10.0)),
+    AI(loc=2, name='', voltage_range=(-10.0, 10.0)),
+    AI(loc=3, name='', voltage_range=(-10.0, 10.0)),
+    AI(loc=4, name='', voltage_range=(-10.0, 10.0)),
+        ]
