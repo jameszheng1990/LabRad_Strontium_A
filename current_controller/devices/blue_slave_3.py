@@ -42,12 +42,12 @@ class BlueSlave3(object):
         command = 'LAS:LDI {}'.format(current)
         self._write_to_slot(command)
     
-    @property
-    def is_locked(self):
-        if self.moncurrent > self._locked_threshold:
-            return True
-        else:
-            return False
+    # @property
+    # def is_locked(self):
+    #     if self.moncurrent > self._locked_threshold:
+    #         return True
+    #     else:
+    #         return False
     
     @property
     def moncurrent(self):
@@ -77,6 +77,18 @@ class BlueSlave3(object):
         self.current = current + self._relock_stepsize
         time.sleep(0.2)
         self.current = current
+    
+    @property
+    def threshold(self):
+        command = 'MESsage?'
+        response = self._query_to_slot(command)
+        return float(response)
+    
+    @threshold.setter
+    def threshold(self, value):
+        # Write to internal message buffer, to store the threshold.
+        command = 'MESsage {}'.format(value)
+        self._write_to_slot(command)
 
 class BlueSlave3Proxy(BlueSlave3):
     _serial_servername = 'serial'

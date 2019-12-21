@@ -428,7 +428,8 @@ class CurrentControllerClient(QtWidgets.QGroupBox):
             self.lockButton.setStyleSheet('QWidget {background-color: %s}' % self.unlockedColor)
     
     def getThreshold(self):
-        threshold = self.threshold 
+        threshold = self.threshold
+        self.device.threshold = threshold  # Write threshold to the internal buffer
         self.reactor.callFromThread(self.displayThreshold, threshold)
     
     def displayThreshold(self, threshold):
@@ -511,7 +512,7 @@ class CurrentControllerClient(QtWidgets.QGroupBox):
                         break;
                 self.locki = round(self.list_scan[scaniIndex] + 0.2, 2) 
                 self.threshold = int((self.list_moncurrent[scanfIndex] + self.list_moncurrent[scanfIndex + 2])/2)
-                        
+                
                 self.currentDT = datetime.datetime.now()
                 self.file_name = self.name + '_' + self.currentDT.strftime("%H_%M_%S") + '.png'
                 self.save_path = os.path.join(self.data_directory, self.file_name)

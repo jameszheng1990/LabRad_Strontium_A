@@ -77,6 +77,18 @@ class BlueSlave1(object):
         self.current = current + self._relock_stepsize
         time.sleep(0.2)
         self.current = current
+    
+    @property
+    def threshold(self):
+        command = 'MESsage?'
+        response = self._query_to_slot(command)
+        return float(response)
+    
+    @threshold.setter
+    def threshold(self, value):
+        # Write to internal message buffer, to store the threshold.
+        command = 'MESsage {}'.format(value)
+        self._write_to_slot(command)
 
 class BlueSlave1Proxy(BlueSlave1):
     _serial_servername = 'serial'
