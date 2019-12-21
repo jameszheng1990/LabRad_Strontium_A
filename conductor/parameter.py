@@ -105,6 +105,25 @@ class ConductorParameter(object):
                 self.value_queue = deque([])
                 self.value_queue = deque([value])
         
+        elif self.value_type == 'seq_list':
+            if not hasattr(value, '__iter__'):
+                self.value = value
+#                message = (
+#                        "conductor parameter ({}) has value_type 'list'."
+#                        "trying to assign value with no attr '__iter__'."
+#                        .format(self.name)
+#                        )
+#                raise Exception(message)
+            # elif len(value) > 1:
+            #     if hasattr(value[0], '__iter__'):
+            #         self.value_queue = deque([v for v in value])
+            #     else:
+            #         self.value_queue = deque([])
+            #         self.value = value
+            else:
+                self.value_queue = deque([])
+                self.value_queue = deque([value])
+        
         elif self.value_type == 'dict':
             if type(value).__name__ == 'list':
                 self.value_queue = deque([v for v in value])
@@ -159,13 +178,15 @@ class ConductorParameter(object):
         self.previous_value = self.value
         
         # set value
+        # If queue={}, value stays the same.
         if self.value_queue:
             self.value = self.value_queue.popleft()
         if self.value_type in ['once']:
             self.value = None
         
         # append value to end of queue if looping
-        if loop and self.value_queue:
+        # if loop and self.value_queue:
+        if loop:  # ADD, above doesn't work for queue = [0]..
             self.value_queue.append(self.value)
 
     def _advance(self, loop):

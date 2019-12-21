@@ -24,7 +24,6 @@ import sys
 import time
 import traceback
 
-
 from server_tools.threaded_server import ThreadedServer
 from labrad.server import setting
 from labrad.server import Signal
@@ -102,17 +101,53 @@ class ConductorServer(ThreadedServer):
     experiment = {}
     experiment_queue = deque([])
     parameter_directory = os.path.join(os.getenv('PROJECT_LABRAD_TOOLS_PATH'), name, 'parameters\\')
-    experiment_directory = os.path.join(os.getenv('PROJECT_LABRAD_TOOLS_PATH'), name, 'experiments\\')
+    experiment_directory = 'C:\\LabRad\\SrData\\experiments'
     is_advancing = False
     verbose = False
-
+    
+    is_triggered = False
+    is_first = True
+    is_end = False
+    
     def initServer(self):
         self._initialize_parameters(request={}, all=True, suppress_errors=True)
     
     def stopServer(self):
         self._save_parameter_values()
         self._terminate_parameters(request={}, all=True, suppress_errors=True)
-
+    
+    @setting(100)
+    def check_trigger(self, c):  
+        return self.is_triggered
+    
+    @setting(101)
+    def trigger_on(self, c):
+        self._trigger_on()
+        
+    def _trigger_on(self):
+        self.is_triggered = True
+    
+    @setting(102)
+    def trigger_off(self, c):
+        self._trigger_off()
+    
+    def _trigger_off(self):
+        self.is_triggered = False
+        self.is_first = True
+        self.is_end = False
+        self.experiment = {}
+        self._clear_experiment_queue()
+    
+    @setting(103)
+    def get_name(self, c):
+        return self._get_name
+        
+    def _get_name(self):
+        if self.experiment:
+            return self.experiment['name']
+        else:
+            return 'empty'
+        
     @setting(0)
     def get_configured_parameters(self, c):
         """ Get names of parameters available to the conductor.
@@ -709,7 +744,8 @@ class ConductorServer(ThreadedServer):
             ParameterAdvanceError: raised if we catch some generic error in 
                 the advance process.
         """
-        loop = self.experiment.get('loop', False)
+        # loop = self.experiment.get('loop', False)
+        loop = self.experiment.get('loop')  # ADD, what is False for?..
         try:
             parameter = self._get_parameter(name)
             parameter._advance(loop)
@@ -848,11 +884,11 @@ class ConductorServer(ThreadedServer):
                     'experiment_number': 0,
                     'shot_number': 0,
                     }
+                if self.experiment_queue[0]['loop']:
+                    self.experiment_queue.append(self.experiment_queue[0]) # ADD: Will add to queue infinitely if loop is True. 
                 experiment.update(self.experiment_queue.popleft())
                 self.experiment = experiment
                 self._fix_experiment_name()
-                
-                print(experiment['parameters'])
                 self._reload_parameters(experiment['parameters'])
                 self._set_parameter_values(experiment['parameter_values'])
                 print("experiment ({}): loaded from queue".format(experiment['name']))
@@ -870,46 +906,58 @@ class ConductorServer(ThreadedServer):
         # prevent multiple advances from happening at the same time
         if self.is_advancing:
             raise AlreadyAdvancingError()
-        try:
+        try:            
             # start timer 
             ti = time.time()
             # signal that we are advancing
             self.is_advancing = True
             
-            # check status of current experiment
-            # if it is comple
-            if self.experiment:
-                remaining_points = get_remaining_points(self.parameters)
-                if remaining_points:
-                    if self.experiment.get('shot_number') is not None:
-                        self.experiment['shot_number'] += 1
-                else:
-                    if self.experiment.get('name'):
-                        print("experiment ({}): completed".format(self.experiment['name']))
-                    self._advance_experiment()
-            else:
+            # check if this is the first_shot
+            if self.is_first:
+                # for the first shot of experiment, you want to write and load.
+                print('This is the first shot of experiments.')
                 self._advance_experiment()
-
-            remaining_points = get_remaining_points(self.parameters)
-            if remaining_points:
-                if self.experiment.get('repeat_shot'):
-                    self.experiment['repeat_shot'] = False
-                    remaining_points += 1
-                else:
-                    self._advance_parameter_values(suppress_errors=suppress_errors)
-                #print "experiment ({}): remaining points: {}".format(self.experiment['name'], remaining_points)
+                self._advance_parameter_values(suppress_errors=suppress_errors)
                 name = self.experiment.get('name')
                 shot_number = self.experiment.get('shot_number')
-                if self.experiment.get('loop'):
-                    print("experiment ({}): shot {}".format(name, shot_number + 1))
-                elif (shot_number is not None):
-                    print("experiment ({}): shot {} of {}".format(name, shot_number + 1, remaining_points + shot_number))
+                print("experiment ({}): shot {}".format(name, shot_number)) # Basically should be shot#0
+            
+            # if not the first shot, check if there is remaining points.
             else:
-                self._advance_parameter_values(suppress_errors=suppress_errors)
+                remaining_points = get_remaining_points(self.parameters)
+                # if remaining points, then it is not the end of experiments.
+                if remaining_points:
+                    # first advance parameter values
+                    if self.experiment.get('repeat_shot'):
+                        self.experiment['repeat_shot'] = False
+                        remaining_points += 1
+                    else:
+                        self._advance_parameter_values(suppress_errors=suppress_errors)
+                    name = self.experiment.get('name')
+                    self.experiment['shot_number'] += 1
+                    shot_number = self.experiment.get('shot_number')
+                    print("experiment ({}): shot {}".format(name, shot_number))
+                
+                else:
+                    # If there is no remaining_points, probably means that it is an 'unlooped' experiment.
+                    self._advance_experiment()
+                    # if no exp, meaning that it is end of experiments.
+                    if not self.experiment:
+                        self.is_end = True
+                        print('End of experiments.')
+                    # if yes, meaning this is transition to another first shot of queue experiment.
+                    else:
+                        self._advance_parameter_values(suppress_errors=suppress_errors)
+                        name = self.experiment.get('name')
+                        shot_number = self.experiment.get('shot_number')
+                        print("experiment ({}): shot {}".format(name, shot_number))
+                        self.is_first = True
+                        
             self._update_parameters(suppress_errors=suppress_errors)
             tf = time.time()
             if self.verbose:
                 print('advanced in {} s'.format(tf - ti))
+                
         except:
             if not suppress_errors:
                 raise
@@ -985,7 +1033,7 @@ class ConductorServer(ThreadedServer):
         save_values.update(old_values)
         save_values.update(new_values)
         
-        values_filename = os.path.join('.values', 'current.json')
+        values_filename = os.path.join('saved_values', 'current.json')
         values_path = os.path.join(self.parameter_directory, values_filename)
         with open(values_path, 'w') as outfile:
             json.dump(save_values, outfile)
@@ -1015,7 +1063,16 @@ class ConductorServer(ThreadedServer):
         if not os.path.isdir(log_dir):
             os.makedirs(log_dir)
         open(log_path, 'a').close()
-
+    
+    def _log_experiment_sequence(self):
+        log_path = os.path.join(self.experiment_directory, self.experiment.get('name') + '_sequence')
+        log_dir, log_name = os.path.split(log_path)
+        if not os.path.isdir(log_dir):
+            os.makedirs(log_dir)
+        with open(log_path, 'w') as outfile:
+            sequence = self.getSequence()
+            json.dump(sequence, outfile)
+        
     def _send_update(self, update):
         update_json = json.dumps(update, default=lambda x: None)
         self.update(update_json)

@@ -84,7 +84,7 @@ class RunBlueMOT(ButtonActionWidget):
     def onButtonPressed(self):
         server = yield self.cxn.get_server(self.servername)
         request = {
-            'sequencer.sequence': ['blue_mot_ss_wo_mot']
+            'sequencer.sequence': ['blue_mot_ss_wo_coil']
             }
         yield server.set_parameter_values(json.dumps(request))
         

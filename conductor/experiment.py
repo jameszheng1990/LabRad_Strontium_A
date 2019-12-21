@@ -1,4 +1,4 @@
-import json
+import json, os
 import labrad
 
 def json_defaults(obj):
@@ -13,7 +13,7 @@ class Experiment(object):
         self.loop = kw.get('loop', False)
 
     def queue(self, run_immediately=False):
-        cxn = labrad.connect()
+        cxn = labrad.connect(name=self.name, host=os.getenv('LABRADHOST'), password='')
         request = {
             'name': self.name,
             'parameters': self.parameters,
