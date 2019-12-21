@@ -212,6 +212,24 @@ class SequencerServer(DeviceServer):
         self._send_update({'running': response})
         return response
     
+    @setting(16)
+    def log_sequence(self, c, request_json='{}'):
+        """ Return Loggable sequence for conductor """
+        request = json.loads(request_json)
+        response = self._log_sequence(request)
+        response_json = json.dumps(response)
+        return response_json
+
+    def _log_sequence(self, request={}):
+        if request == {}:
+            request = {device_name: None for device_name in self.devices}
+        response = {}
+        for device_name, device_request in request.items():
+            device = self._get_device(device_name)
+            response = device.get_raw_sequence()  # Requenst should be NONE to get
+            response.update(response)
+        return response
+    
 Server = SequencerServer()
     
 if __name__ == "__main__":

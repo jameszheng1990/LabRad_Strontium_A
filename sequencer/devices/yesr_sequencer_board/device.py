@@ -162,7 +162,7 @@ class YeSrSequencerBoard(DefaultDevice):
 
     def get_sequence(self):
         return self.subsequence_names
-   
+    
     def set_raw_sequence(self, raw_sequence):
         self.raw_sequence = raw_sequence
         parameter_names = self.get_sequence_parameter_names(raw_sequence)
@@ -170,14 +170,14 @@ class YeSrSequencerBoard(DefaultDevice):
         programmable_sequence = self.substitute_sequence_parameters(raw_sequence, parameter_values)
         
         if self.device_name == 'AO':
-            sequence_bytes = self.make_sequence_bytes(self.raw_sequence)
+            sequence_bytes = self.make_sequence_bytes(programmable_sequence) # TODO
             
             self.set_loading(True)
             self.ni.Write_AO_Sequence(sequence_bytes)
             self.set_loading(False)
          
         elif self.device_name == 'DIO':
-            sequence_bytes = self.make_sequence_bytes(self.raw_sequence)
+            sequence_bytes = self.make_sequence_bytes(programmable_sequence) # TODO
 
             self.set_loading(True)
             self.ni.Write_DO_Sequence(sequence_bytes)
