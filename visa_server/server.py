@@ -75,7 +75,7 @@ class VisaServer(ThreadedServer):
         resource_kwargs = json.loads(resource_kwargs_json)
         inst = self._rm.open_resource(resource_name, **resource_kwargs)
         return inst.write(message, termination, encoding)[0]
-
+    
 Server = VisaServer
 
 if __name__ == "__main__":
