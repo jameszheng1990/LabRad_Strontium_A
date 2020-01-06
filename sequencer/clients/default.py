@@ -503,7 +503,7 @@ class SequencerClient(QtWidgets.QWidget):
     @inlineCallbacks
     def get_sequence_parameters(self):
         conductor = yield self.cxn.get_server(self.conductor_servername)
-        parameter_names = get_sequence_parameters(self.sequence)
+        parameter_names = get_sequence_parameters(self.sequence)  # TODO: THIS does not work...
         request = {
             parameter_name.replace('*', 'sequencer.'): None
                 for parameter_name in parameter_names

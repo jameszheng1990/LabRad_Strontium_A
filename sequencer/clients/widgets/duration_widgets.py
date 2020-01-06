@@ -15,7 +15,7 @@ class DurationRow(QtWidgets.QWidget):
 
     def populate(self):
         units =  [(0, 's'), (-3, 'ms'), (-6, 'us'), (-9, 'ns')]
-        self.boxes = [SuperSpinBox([500e-9, 60], units) for i in range(self.parent.max_columns)]
+        self.boxes = [SuperSpinBox([500e-9, 100], units) for i in range(self.parent.max_columns)]
         self.layout = QtWidgets.QHBoxLayout()
         for db in self.boxes:
             self.layout.addWidget(db)

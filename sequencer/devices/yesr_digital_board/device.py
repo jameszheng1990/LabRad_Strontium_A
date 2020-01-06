@@ -100,6 +100,7 @@ class YeSrDigitalBoard(YeSrSequencerBoard):
             var_out = list(map(variable_out, out_list, dt_list, clk_function))
             var_out = list(itertools.chain.from_iterable(var_out))
             ni_sequence.append(var_out)
+            
         return ni_sequence  # in Boolean
     
     def make_clk_sequence(self, sequence):
@@ -143,6 +144,6 @@ class YeSrDigitalBoard(YeSrSequencerBoard):
                 
         clk_sequence = list(itertools.chain(*a))
         # Should end with one more [True, False] edge
-        clk_sequence.extend([True,False])
+        clk_sequence.extend([True, False])
         
         return clk_sequence  # in Boolean

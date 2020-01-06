@@ -9,13 +9,13 @@ class DIO(YeSrDigitalBoard):
     
     channels = [
         YeSrDigitalChannel(loc=['D', 0], name='3D MOT AOM', mode='auto', manual_output=False, invert=False),
-        YeSrDigitalChannel(loc=['D', 1], name='3D MOT Shutter', mode='auto', manual_output=False, invert=False),
+        YeSrDigitalChannel(loc=['D', 1], name='3D MOT Shutter', mode='auto', manual_output=False, invert=True),
         YeSrDigitalChannel(loc=['D', 2], name='2D MOT Shutter', mode='auto', manual_output=True, invert=True),
-        YeSrDigitalChannel(loc=['D', 3], name='ZS Shutter', mode='auto', manual_output=False, invert=False),
+        YeSrDigitalChannel(loc=['D', 3], name='ZS Shutter', mode='auto', manual_output=False, invert=True),
         YeSrDigitalChannel(loc=['D', 4], name='Probe AOM', mode='auto', manual_output=True, invert=True),
         YeSrDigitalChannel(loc=['D', 5], name='Probe Shutter', mode='auto', manual_output=False, invert=False),
         YeSrDigitalChannel(loc=['D', 6], name='Repumps AOM', mode='auto', manual_output=True, invert=False),
-        YeSrDigitalChannel(loc=['D', 7], name='Repumps Shutter', mode='auto', manual_output=True, invert=False),
+        YeSrDigitalChannel(loc=['D', 7], name='Repumps Shutter', mode='auto', manual_output=True, invert=True),
     
         YeSrDigitalChannel(loc=['D', 8], name='Red MOT TTL', mode='auto', manual_output=False, invert=False),
         YeSrDigitalChannel(loc=['D', 9], name='Red MOT Shutter', mode='auto', manual_output=False, invert=False),
@@ -24,7 +24,7 @@ class DIO(YeSrDigitalBoard):
         YeSrDigitalChannel(loc=['D', 12], name='None3', mode='auto', manual_output=False, invert=False),
         YeSrDigitalChannel(loc=['D', 13], name='None4', mode='auto', manual_output=False, invert=False),
         YeSrDigitalChannel(loc=['D', 14], name='None5', mode='auto', manual_output=False, invert=False),
-        YeSrDigitalChannel(loc=['D', 15], name='Trigger', mode='auto', manual_output=False, invert=False),  #AO card trigger
+        YeSrDigitalChannel(loc=['D', 15], name='Trigger', mode='auto', manual_output=False, invert=False),  #AI card trigger
         
         YeSrDigitalChannel(loc=['D', 16], name='None6', mode='auto', manual_output=False, invert=False),
         YeSrDigitalChannel(loc=['D', 17], name='None7', mode='auto', manual_output=False, invert=False),

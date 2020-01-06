@@ -1,0 +1,19 @@
+
+channels=
+
+{ 
+     'AI':
+        [
+        loc=0, name='Fluorescence PD', voltage_range=(-10.0, 10.0),
+        loc=1, name='PMT', voltage_range=(-10.0, 10.0),
+        loc=2, name='', voltage_range=(-10.0, 10.0),
+        loc=3, name='', voltage_range=(-10.0, 10.0),
+        loc=4, name='', voltage_range=(-10.0, 10.0),
+        ],
+        
+    'PFI':
+        [
+        loc=0, name='External Clock In',
+        loc=1, name='Analog In trigger'
+        ]
+}
