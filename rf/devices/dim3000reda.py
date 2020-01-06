@@ -38,10 +38,6 @@ class DIM3000REDA(object):
         self.initialize(self.rf_state, self.fm_state, self.fm_dev)
     
     def initialize(self, rf_state, fm_state, fm_dev):
-        if rf_state:
-            self._write_to_slot('OUT_on')
-        else:
-            self._write_to_slot('OUT_off')
         
         if fm_state:
             self._write_to_slot('FM_on')
