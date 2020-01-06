@@ -27,57 +27,37 @@ from sequencer.devices.timing import config
 
 
 class NIServer(ThreadedServer):
+    """ Provide access to NI DAQ via nidaqmx."""
     name = 'ni'
     
     def initServer(self):
+        
         self.rate_do = config().set_do_rate()
-        self.timeout_do = 60
+        self.timeout_do = 150
         self.clk_channel_do = 'PFI4'
         
         self.rate_ao = config().set_ao_rate()
-        self.timeout_ao = 60
+        self.timeout_ao = 150
         self.trigger_channel = 'PFI0'
         self.clk_channel_ao = 'PFI1'
         
         self.rate_clk = config().set_clk()
         self.source = '100kHzTimebase'
 #        self.source = 'PXI_Clk10'
-        self.timeout_clk = 60
+        # self.source = 'PFI0'  #External CLK source input
+        self.timeout_clk = 150
         
         self.seq_task_ao = None
         self.seq_task_do = None
         self.seq_task_clk = None
         
-        self.conductor_trigger = False
-        self.conductor_trigger_once = False
+        self.ai_trigger = 'PFI1' # Should be PFI1
+        self.pd_task_ai = None
+        self.pmt_task_ai = None
+        self.timeout_ai = 180
+
+        super(NIServer, self).initServer()
         
-    
-    @setting(31)
-    def is_triggered(self, c):
-        conductor_trigger = self.conductor_trigger
-        return conductor_trigger
-    
-    @setting(32)
-    def trigger_on(self, c):
-        self.conductor_trigger = True
-        
-    @setting(33)
-    def trigger_off(self, c):
-        self.conductor_trigger = False
-        
-    @setting(34)
-    def is_triggered_once(self, c):
-        conductor_trigger_once = self.conductor_trigger_once
-        return conductor_trigger_once
-    
-    @setting(35)
-    def trigger_once_on(self, c):
-        self.conductor_trigger_once = True
-        
-    @setting(36)
-    def trigger_once_off(self, c):
-        self.conductor_trigger_once = False
-    
     @setting(1)
     def write_ao_manual(self, c, voltage, port):
         """
@@ -211,15 +191,17 @@ class NIServer(ThreadedServer):
         if self.seq_task_clk.is_task_done():
             self.seq_task_clk.start()
             
+            print('DAQ tasks started.')
+            
             self.seq_task_ao.wait_until_done(self.timeout_ao)
             self.seq_task_do.wait_until_done(self.timeout_do)
             self.seq_task_clk.wait_until_done(self.timeout_clk)
-            
-            self.seq_task_clk.stop()
-            self.seq_task_do.stop()        
+                   
             self.seq_task_ao.stop()
+            self.seq_task_do.stop() 
+            self.seq_task_clk.stop()
             
-            print('Run sequence on DAQ.')
+            print('DAQ tasks done.')
         
         else:
             print('Sequencer CLK tasks do not exist!')
@@ -234,6 +216,35 @@ class NIServer(ThreadedServer):
     #     else:
     #         pass
     
+    @setting(14)
+    def read_ai_manual(self, c, port):
+        with nidaqmx.Task() as task:
+            task.ai_channels.add_ai_voltage_chan("Dev0/ai{}".format(port))
+            data = task.read()
+        return data
+    
+    @setting(15, returns = 's')
+    def pd_ai_trigger(self, c, port, samp_rate, n_samp):
+        """
+        Read Analog-In voltage for PD in Trigger Mode
+        """
+        if self.pd_task_ai: # Make sure task is close before you add new stuffs.
+            self.pd_task_ai.close()
+        
+        self.pd_task_ai = nidaqmx.Task()
+        self.pd_task_ai.ai_channels.add_ai_voltage_chan("Dev0/ai{}".format(port))
+        self.pd_task_ai.timing.cfg_samp_clk_timing(rate = int(samp_rate), samps_per_chan = int(n_samp))    #rate, samps_per_chan
+        self.pd_task_ai.triggers.start_trigger.cfg_dig_edge_start_trig(self.ai_trigger)  # Default with rising edge  
+        
+        print('AI configured.')
+        
+        data = self.pd_task_ai.read(number_of_samples_per_channel = -1, timeout = self.timeout_ai)  # -1 means will read all available samples
+        self.pd_task_ai.wait_until_done(self.timeout_ao)
+        
+        self.pd_task_ai.stop()
+        data_json = json.dumps(data)
+        return data_json
+    
     @setting(20)
     def reset_devices(self, c):
         available_devices = list(nidaqmx.system.System.local().devices)
@@ -242,6 +253,8 @@ class NIServer(ThreadedServer):
                 device.reset_device()
         else:
             pass
+    
+    
             
     
 Server = NIServer

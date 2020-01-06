@@ -41,24 +41,6 @@ class niFrontPanelProxy(object):
     def __init__(self, server):
         self._server = server
     
-    def Is_Triggered(self):
-        return self._server.is_triggered()
-    
-    def Trigger_On(self):
-        self._server.trigger_on()
-        
-    def Trigger_Off(self):
-        self._server.trigger_off()
-    
-    def Is_Triggered_Once(self):
-        return self._server.is_triggered_once()
-    
-    def Trigger_Once_On(self):
-        self._server.trigger_once_on()
-        
-    def Trigger_Once_Off(self):
-        self._server.trigger_once_off()
-        
     def Write_CLK_Manual(self, boolean):
         self._server.write_clk_manual(boolean)
         
@@ -122,6 +104,22 @@ class niFrontPanelProxy(object):
         Start CLK sequences for conductor.
         """
         self._server.start_clk_sequence()
+    
+    def Read_AI_Manual(self, port):
+        """ Read an AI channel for an arbitrary port,
+        
+        Args:
+            port (int): The input port from A0 to A7
+        """ 
+        return self._server.read_ai_manual(port)
+        
+    def Read_PD_AI(self, port, samp_rate, n_samp):
+        """ Read an AI channel for PD voltage in trigger mode.
+        
+        Args:
+            port (int): The input port from A0 to A7
+        """ 
+        return self._server.pd_ai_trigger(port, samp_rate, n_samp)
     
     def Reset_Devices(self):
         """
