@@ -13,13 +13,13 @@ class IsLocked(ConductorParameter, blue_slave_1.BlueSlave1Proxy):
     
     def initialize(self, config):
         super(IsLocked, self).initialize(config)
-        self._update = UpdateProxy('blue_slave_1')
+        self._update = UpdateProxy('Blue Slave 1')   # Should have the same name as in current controller client..
         callInThread(self.update)
         
     def update(self):
         moncurrent = self.moncurrent
         lock_threshold = self.threshold
         self.value = bool(moncurrent > lock_threshold)
-        self._update.emit({'moncurrent': moncurrent})
+        self._update.emit({'moncurrent': moncurrent})  # Will update value on current controller.. in principle..
 
 Parameter = IsLocked

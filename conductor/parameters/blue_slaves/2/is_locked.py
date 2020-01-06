@@ -13,7 +13,7 @@ class IsLocked(ConductorParameter, blue_slave_2.BlueSlave2Proxy):
 
     def initialize(self, config):
         super(IsLocked, self).initialize(config)
-        self._update = UpdateProxy('blue_slave_2')
+        self._update = UpdateProxy('Blue Slave 2')
         callInThread(self.update)
         
     def update(self):

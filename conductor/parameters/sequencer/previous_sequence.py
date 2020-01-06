@@ -10,7 +10,7 @@ class PreviousSequence(ConductorParameter):
     autostart = True
     priority = 13
     value_type = 'list'
-    value = None
+    value = []
 
     sequencer_servername = 'sequencer'
     master_device = 'Z_CLK'

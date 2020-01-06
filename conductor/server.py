@@ -96,11 +96,11 @@ class ConductorServer(ThreadedServer):
     to queue.
     """
     name = 'conductor'
-    update = Signal(648324, 'signal: update', 's')
+    update = Signal(648324, 'signal: update', 's')  # on listener: signal__update
     parameters = {}
     experiment = {}
     experiment_queue = deque([])
-    parameter_directory = os.path.join(os.getenv('PROJECT_LABRAD_TOOLS_PATH'), name, 'parameters\\')
+    parameter_directory = os.path.join(os.getenv('PROJECT_LABRAD_TOOLS_PATH'), name, 'parameters/')
     experiment_directory = 'C:\\LabRad\\SrData\\experiments'
     is_advancing = False
     verbose = False
@@ -132,11 +132,8 @@ class ConductorServer(ThreadedServer):
         self._trigger_off()
     
     def _trigger_off(self):
-        self.is_triggered = False
-        self.is_first = True
-        self.is_end = False
-        self.experiment = {}
-        self._clear_experiment_queue()
+        # self.is_triggered = False
+        self.is_end = True
     
     @setting(103)
     def get_name(self, c):
@@ -878,6 +875,7 @@ class ConductorServer(ThreadedServer):
                 experiment = {
                     'name': 'unnamed',
                     'parameters': {},
+                    'terminated_parameters':{},
                     'parameter_values': {},
                     'loop': False,
                     'repeat_shot': False,
@@ -890,6 +888,7 @@ class ConductorServer(ThreadedServer):
                 self.experiment = experiment
                 self._fix_experiment_name()
                 self._reload_parameters(experiment['parameters'])
+                self._terminate_parameters(experiment['terminated_parameters'])
                 self._set_parameter_values(experiment['parameter_values'])
                 print("experiment ({}): loaded from queue".format(experiment['name']))
                 self._log_experiment_number()
@@ -944,7 +943,6 @@ class ConductorServer(ThreadedServer):
                     # if no exp, meaning that it is end of experiments.
                     if not self.experiment:
                         self.is_end = True
-                        print('End of experiments.')
                     # if yes, meaning this is transition to another first shot of queue experiment.
                     else:
                         self._advance_parameter_values(suppress_errors=suppress_errors)
@@ -1038,7 +1036,7 @@ class ConductorServer(ThreadedServer):
         with open(values_path, 'w') as outfile:
             json.dump(save_values, outfile)
         
-        values_filename = os.path.join('.values', '{}.json'.format(time.strftime('%Y%m%d')))
+        values_filename = os.path.join('saved_values', '{}.json'.format(time.strftime('%Y%m%d')))
         values_path = os.path.join(self.parameter_directory, values_filename)
         with open(values_path, 'w') as outfile:
             json.dump(save_values, outfile)
@@ -1063,15 +1061,6 @@ class ConductorServer(ThreadedServer):
         if not os.path.isdir(log_dir):
             os.makedirs(log_dir)
         open(log_path, 'a').close()
-    
-    def _log_experiment_sequence(self):
-        log_path = os.path.join(self.experiment_directory, self.experiment.get('name') + '_sequence')
-        log_dir, log_name = os.path.split(log_path)
-        if not os.path.isdir(log_dir):
-            os.makedirs(log_dir)
-        with open(log_path, 'w') as outfile:
-            sequence = self.getSequence()
-            json.dump(sequence, outfile)
         
     def _send_update(self, update):
         update_json = json.dumps(update, default=lambda x: None)

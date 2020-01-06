@@ -8,7 +8,7 @@ def json_defaults(obj):
 class Experiment(object):
     def __init__(self, **kw):
         self.name = kw.get('name', 'default')
-        self.parameters = kw.get('parameters', {})
+        self.parameters = kw.get('parameters', {})  # Reload parameters
         self.parameter_values = kw.get('parameter_values', {})
         self.loop = kw.get('loop', False)
 

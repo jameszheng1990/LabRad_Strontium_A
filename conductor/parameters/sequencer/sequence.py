@@ -52,7 +52,6 @@ class Sequence(ConductorParameter):
     
     def update(self):
         """ value is list of strings """
-        
         # first check if we are running
         request = {self.sequencer_master_device: None}
         response = json.loads(self.sequencer_server.running(json.dumps(request)))
@@ -96,7 +95,10 @@ class Sequence(ConductorParameter):
                 self.server.is_triggered = False
                 request = {self.sequencer_master_device: self.default_value} # Write default value to Z_CLK device
                 self.sequencer_server.sequence(json.dumps(request))  
-            
+                self.server._stop_experiment()
+                self.server._clear_experiment_queue()
+                print('Experiment ends!')
+                
             # If not first or end, will check if what is running == what we want to run.
             else:
                 request = {device_name: None for device_name in self.sequencer_devices}
@@ -108,11 +110,11 @@ class Sequence(ConductorParameter):
                 if (what_i_think_is_running != what_is_running):
                     request = {device_name: self.value for device_name in self.sequencer_devices}
                     self.sequencer_server.sequence(json.dumps(request))  # Write value
+                    
+                    self.log_experiment_sequence() # LOG When sequence is changed.
     
                 request = {device_name: True for device_name in self.sequencer_devices}
                 self.sequencer_server.running(json.dumps(request))   # Run value
-                self.log_experiment_sequence()  # LOG Sequences
-            
             
         callInThread(self._advance_on_trigger)
 
@@ -147,8 +149,6 @@ class Sequence(ConductorParameter):
     
     def log_experiment_sequence(self):
         name = self.server._get_name()
-        print(name)
-        print(self.server.experiment_directory)
         log_path = os.path.join(self.server.experiment_directory, name.split('\\')[0], 'sequences\\', name.split('\\')[1]+'_sequence')
         log_dir, log_name = os.path.split(log_path)
         if not os.path.isdir(log_dir):
@@ -157,6 +157,6 @@ class Sequence(ConductorParameter):
             request = {device_name: None for device_name in self.sequencer_devices}
             sequence = json.loads(self.sequencer_server.log_sequence(json.dumps(request)))
             json.dump(sequence, outfile)
-        print('Log experiment')
+        print('Log experiment!')
         
 Parameter = Sequence
