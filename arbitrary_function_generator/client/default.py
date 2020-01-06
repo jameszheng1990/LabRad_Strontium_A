@@ -50,7 +50,6 @@ class AFGControllerClient(QtWidgets.QGroupBox):
         yield self.cxn.update.register(self.name)
 
     def receiveUpdate(self, c, updateJson):
-        # 'Power' in functions means Monitor Current
         update = json.loads(updateJson)
         dc = update.get('dc')
         if dc is not None:
