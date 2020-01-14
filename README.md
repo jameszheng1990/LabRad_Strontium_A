@@ -1,2 +1,2 @@
 # LabRad_Strontium_A
-LabRad Repo for Sr_A
+Repo for strontium experiment in Kolkowitz Lab.
