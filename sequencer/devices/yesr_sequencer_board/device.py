@@ -189,6 +189,7 @@ class YeSrSequencerBoard(DefaultDevice):
             self.set_loading(True)
             self.ni.Write_CLK_Sequence(sequence_bytes)
             self.set_loading(False)
+        
             
     def get_raw_sequence(self):
         return self.raw_sequence
@@ -270,6 +271,20 @@ class YeSrSequencerBoard(DefaultDevice):
             if device_name == 'Z_CLK':
                 self.running = running
                 self.ni.Start_CLK_Sequence()
+                
+        else:
+            self.running = running
+            
+    def set_running_wo_AO(self, device_name, running):
+        if running is True:
+
+            if device_name == 'DIO':
+                self.running = running
+                self.ni.Start_DO_Sequence()
+
+            if device_name == 'Z_CLK':
+                self.running = running
+                self.ni.Start_CLK_Sequence_Without_AO()
                 
         else:
             self.running = running

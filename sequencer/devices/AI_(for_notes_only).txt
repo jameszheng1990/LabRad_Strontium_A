@@ -13,7 +13,13 @@ channels=
         
     'PFI':
         [
-        loc=0, name='External Clock In',
+        loc=0, name='External Clock REF 10 MHz',
         loc=1, name='Analog In trigger'
         ]
+
+    'DIO':
+	[
+	loc=0, name='Variable Clock out',
+	loc=1-7: disabled.
+	]
 }

@@ -1,7 +1,7 @@
 class config(object):
     
     def set_clk(self):
-        clk = 100e3     # [Hz]
+        clk = 10e6
         return clk
     
     def get_key(self):
@@ -9,9 +9,9 @@ class config(object):
         return key
     
     def set_do_rate(self):
-        rate = 50e3    # [Hz], should be half of clk
+        rate = 5e5
         return rate
     
     def set_ao_rate(self):
-        rate = 50e3    # [Hz] Should be half of the Clk
+        rate = 5e5
         return rate

@@ -8,7 +8,7 @@ class DIO(YeSrDigitalBoard):
     is_master = True
     
     channels = [
-        YeSrDigitalChannel(loc=['D', 0], name='3D MOT AOM', mode='auto', manual_output=False, invert=False),
+        YeSrDigitalChannel(loc=['D', 0], name='3D MOT AOM', mode='auto', manual_output=False, invert=True),
         YeSrDigitalChannel(loc=['D', 1], name='3D MOT Shutter', mode='auto', manual_output=False, invert=True),
         YeSrDigitalChannel(loc=['D', 2], name='2D MOT Shutter', mode='auto', manual_output=True, invert=True),
         YeSrDigitalChannel(loc=['D', 3], name='ZS Shutter', mode='auto', manual_output=False, invert=True),
@@ -17,7 +17,7 @@ class DIO(YeSrDigitalBoard):
         YeSrDigitalChannel(loc=['D', 6], name='Repumps AOM', mode='auto', manual_output=True, invert=False),
         YeSrDigitalChannel(loc=['D', 7], name='Repumps Shutter', mode='auto', manual_output=True, invert=True),
     
-        YeSrDigitalChannel(loc=['D', 8], name='Red MOT TTL', mode='auto', manual_output=False, invert=False),
+        YeSrDigitalChannel(loc=['D', 8], name='Red MOT TTL', mode='auto', manual_output=False, invert=True),
         YeSrDigitalChannel(loc=['D', 9], name='Red MOT Shutter', mode='auto', manual_output=False, invert=False),
         YeSrDigitalChannel(loc=['D', 10], name='Red MOT Ramp Trigger', mode='auto', manual_output=False, invert=False),
         YeSrDigitalChannel(loc=['D', 11], name='CCD trigger', mode='auto', manual_output=False, invert=False),

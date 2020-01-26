@@ -1,4 +1,4 @@
-import json
+import json, time, os, h5py
 import numpy as np
 
 from device_server.device import DefaultDevice
@@ -17,7 +17,9 @@ clk_interval = 1/clk_rate         # Clk interval, which is basically half of sam
 clk_key = config().get_key()
 
 do_rate = config().set_do_rate()
-do_interval = 1/do_rate      # DO sample interval, twice of the clock sample interval
+do_interval = 1/do_rate      # DO sample interval, twice of the desired sample interval
+
+path_buffer = os.path.join(os.getenv('PROJECT_LABRAD_TOOLS_PATH'), "ni_server", "buffer", "buffer")
 
 def get_clk_function(sequence):
     seq_list = [v for s, v in sequence.items()]
@@ -106,20 +108,25 @@ class YeSrDigitalBoard(YeSrSequencerBoard):
     def make_clk_sequence(self, sequence):
         # c.key: channel 
         # If clk.out = 1, use high-precision sample clock (1010...), otherwise use (000...).
-        # Every timing edges must be ended with "0". 
+        # Every timing edge must be ended with "0".
         # CLK rate should be twice the Sample Rate (for DIO, AO)
         
-        def clk_ticks(o, dt):
-            tick = int(round(dt/clk_interval))
-            if tick < 2:
+        def clk_ticks(out, dt):
+            ticks = int(round(dt/do_interval))
+            factor = int(do_interval/clk_interval) # conversion factor from 10 MHz CLK to DO/AO sample rate (0.5 MHz)
+            
+            if ticks < 1:
                 print('dt too small, minimum resolution is 2*1/CLK_rate !')
             else:
-                if o == False:  # Do not apply Var Clk
-                    a = [True, False] *int(round(tick/2))
-                    return a
-                elif o == True:  # Apply Var Clk
+                if out == False:  # Do not apply Var Clk
                     a = [True]
-                    b = [False]*int(tick-1)
+                    b = [False]*int(factor-1)
+                    a.extend(b)
+                    c = a*int(ticks)
+                    return c
+                elif out == True:  # Apply Var Clk
+                    a = [True]
+                    b = [False]*int(ticks*factor - 1)
                     a.extend(b)
                     return a
         
@@ -141,9 +148,13 @@ class YeSrDigitalBoard(YeSrSequencerBoard):
             else:
                 a = [clk_ticks(clk_outlist[i], clk_dtlist[i]) 
                     for i in range(len(clk_outlist))]
-                
+        
         clk_sequence = list(itertools.chain(*a))
-        # Should end with one more [True, False] edge
+        # Should end with one more [True, False] pulse edge
         clk_sequence.extend([True, False])
         
-        return clk_sequence  # in Boolean
+        # return clk_sequence  # in Boolean
+        
+        np.save(path_buffer, clk_sequence)
+        
+        return path_buffer
