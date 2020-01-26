@@ -65,9 +65,10 @@ class TCamServer(ThreadedServer):
         'roi_shape' : [1280, 1024],
         'roi_pos' : [0, 0],
         'exposure' : 2, # in ms
-        'frametime' : 10.0,
+        'frametime' : 40.0, # in ms, 1/frametime*1000 is the framerate, wait time between shot to shot > exposure time + frame time
         'timeout' : 100, # in s
         'delay' : 3, # in us
+        'buffer_size': 3,  # store 3 images in buffer
         }'        
         """
         if request_json == '{}':
@@ -90,6 +91,7 @@ class TCamServer(ThreadedServer):
         self.frametime = request['frametime']
         self.timeout = request['timeout']
         self.delay = request['delay']
+        self.buffer_size = request['buffer_size']
         
         is_InitCamera = self.uc480.is_InitCamera
         is_InitCamera.argtypes = [POINTER(c_int)]
@@ -98,7 +100,7 @@ class TCamServer(ThreadedServer):
         
         if i == 0 :
             print("ThorCam opened successfully.")
-            pixelclock = c_uint(43) # set Pixel clock to 43 MHz (max)
+            pixelclock = c_uint(35) # set Pixel clock to 35 MHz (max)
             is_PixelClock = self.uc480.is_PixelClock
             is_PixelClock.argtypes = [c_int, c_uint, POINTER(c_uint), c_uint]
             is_PixelClock(self.handle, 6, byref(pixelclock), sizeof(pixelclock)) # 6 for setting pixel clock
@@ -108,8 +110,8 @@ class TCamServer(ThreadedServer):
             self._set_roi_position(self.roi_pos)
             self._set_frametime(self.frametime)   # MUST set frametime first, then exposure time.
             self._set_exposure(self.exposure)
-            self._set_timeout(self.timeout)
-            self._set_trigger_delay(self.delay)
+            # self._set_timeout(self.timeout)
+            # self._set_trigger_delay(self.delay)
         else:
             raise CameraOpenError('Opening the ThorCam failed with error code '+str(i))
             
@@ -160,17 +162,21 @@ class TCamServer(ThreadedServer):
     
     def _initialize_memory(self):
         if self.meminfo != None:
-            self.uc480.is_FreeImageMem(self.handle, self.meminfo[0], self.meminfo[1])
-        
+            for i in self.meminfo:
+                self.uc480.is_FreeImageMem(self.handle, i[1], i[0])
+                
         xdim = self.roi_shape[0]
         ydim = self.roi_shape[1]
         imagesize = xdim*ydim
+
+        self.meminfo = []
         
-        memid = c_int(0)
-        c_buf = (c_ubyte * imagesize)(0)
-        self.uc480.is_SetAllocatedImageMem(self.handle, xdim, ydim, 8, c_buf, byref(memid))
-        self.uc480.is_SetImageMem(self.handle, c_buf, memid)
-        self.meminfo = [c_buf, memid]
+        for i in range(self.buffer_size):
+            memid = c_int(0)
+            c_buf = (c_ubyte * imagesize)(0)
+            self.uc480.is_SetAllocatedImageMem(self.handle, xdim, ydim, 8, c_buf, byref(memid))
+            self.uc480.is_AddToSequence(self.handle, c_buf, memid)
+            self.meminfo.append([memid, c_buf])
     
     @setting(14)
     def set_exposure(self, c, exposure):
@@ -178,11 +184,29 @@ class TCamServer(ThreadedServer):
         self._set_exposure(exposure)  
     
     def _set_exposure(self, exposure):
-        exposure_c = c_double(exposure/1000.0)
+        exposure_c = c_double(exposure)
         is_Exposure = self.uc480.is_Exposure
         is_Exposure.argtypes = [c_int, c_uint, POINTER(c_double), c_uint]
         is_Exposure(self.handle, 12, exposure_c, 8) # 12 is for setting exposure
         self.exposure = exposure_c.value
+    
+    @setting(54)
+    def get_exposure_min(self, c):
+        exposure_c=c_double()
+        is_Exposure= self.uc480.is_Exposure
+        is_Exposure.argtypes=[c_int, c_uint, POINTER(c_double), c_uint]
+        is_Exposure(self.handle, 8, exposure_c, 8)
+        ex=self.exposure
+        return ex, exposure_c.value
+
+    @setting(55)
+    def get_exposure_max(self, c):
+        exposure_c=c_double()
+        is_Exposure= self.uc480.is_Exposure
+        is_Exposure.argtypes=[c_int, c_uint, POINTER(c_double), c_uint]
+        is_Exposure(self.handle, 9, exposure_c, 8)
+        ex=self.exposure
+        return ex, exposure_c.value
     
     @setting(15)
     def set_frametime(self, c, frametime):
@@ -196,7 +220,7 @@ class TCamServer(ThreadedServer):
         is_SetFrameRate = self.uc480.is_SetFrameRate
         
         if frametime == 0:
-            frametime = 0.001
+            frametime = 0.04
         
         set_framerate = c_double(0)
         is_SetFrameRate.argtypes = [c_int, c_double, POINTER(c_double)]
@@ -225,11 +249,11 @@ class TCamServer(ThreadedServer):
         self._stop_live_capture()
     
     def _stop_live_capture(self):
-        print('Unlive CCD now.')
+        # print('Unlive CCD now.')
         self.uc480.is_StopLiveVideo(self.handle, 1)
     
     @setting(30)
-    def start_continuous_capture(self, c, buffersize = None):
+    def start_continuous_capture(self, c):
         """
         Start capture in continuous mode.
         w = 0: will not wait; 1: will wait until event.
@@ -289,16 +313,33 @@ class TCamServer(ThreadedServer):
         is_SetTriggerDelay(self.handle, c_int(int(delay)))
     
     @setting(40, returns='s')
-    def get_image(self, c, buffer_number = None):
-        # buffer_number not yet used
-        im = self._get_image(buffer_number)
+    def get_last_image(self, c, buffer_number = None):
+        """ Get single image """
+        im = self._get_last_image(buffer_number)
         im_json = json.dumps(im)
         return im_json
     
-    def _get_image(self, buffer_number = None):
-        im = np.frombuffer(self.meminfo[0], c_ubyte).reshape(self.roi_shape[1], self.roi_shape[0])
+    def _get_last_image(self, buffer_number = None):
+        im = np.frombuffer(self.meminfo[0][1], c_ubyte).reshape(self.roi_shape[1], self.roi_shape[0])
         im_list = im.tolist()
         return im_list
+    
+    @setting(41, returns= 's')
+    def get_all_images(self, c):
+        """ Get all images, however, this is pretty slow, NOT recommended."""
+        im = []
+        for i in range(self.buffer_size):
+            a = np.frombuffer(self.meminfo[i][1], c_ubyte).reshape(self.roi_shape[1], self.roi_shape[0])
+            a_list = a.tolist()
+            im.extend(a_list)
+        im_json = json.dumps(im)
+        return im_json
+    
+    @setting(42, returns = '*i')
+    def get_image(self, c, index):
+        """ Get image from buffer i, unshaped. """
+        a = np.frombuffer(self.meminfo[index][1], c_ubyte)
+        return np.array(a, dtype=np.uint32)
     
 Server = TCamServer
 

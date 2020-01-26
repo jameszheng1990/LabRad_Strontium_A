@@ -1,4 +1,4 @@
-import json
+import json, time
 
 class TCamProxy(object):
     def __init__(self, server):
@@ -35,12 +35,26 @@ class TCamManagerProxy(object):
         """
         self._server.set_trigger_mode(mode)
         
-    def Get_Image(self):
+    def Get_Last_Image(self):
         """
         Get the latest image in buffer, return in list.
         """
-        im_json = self._server.get_image()
+        im_json = self._server.get_last_image()
         im = json.loads(im_json)
+        return im
+    
+    def Get_All_Images(self):
+        """
+        Get the all images in buffer, return in list.
+        """
+        im_json = self._server.get_all_images()
+        # im = json.loads(im_json)
+        # return im
+        return im_json
+    
+    def Get_Image(self, index):
+        """ Get index from buffer i, unshaped. """
+        im = self._server.get_image(index)
         return im
     
     def Start_Single_Capture(self):
