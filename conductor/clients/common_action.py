@@ -13,7 +13,7 @@ from ecdl.clients.default import ParameterLabel
 from client_tools.connection import connection
 from client_tools.widgets import SuperSpinBox
 
-from ni_server.proxy import NIProxy
+from conductor.experiment import Experiment
 
 ACTION_WIDTH = 200
 ACTION_HEIGHT = 50
@@ -37,10 +37,6 @@ class ButtonActionWidget(QtWidgets.QPushButton):
             cname = '{} - {} - client'.format(self.servername, self.name)
             yield self.cxn.connect(name=cname)
             
-        self.ni_server = yield self.cxn.get_server(self.ni_servername)
-        ni_proxy = NIProxy(self.ni_server)
-        self.ni = ni_proxy.niCFrontPanel()
-        
         self.populateGUI()
         yield self.connectSignals()
     
@@ -75,20 +71,26 @@ class ButtonActionWidget(QtWidgets.QPushButton):
     def closeEvent(self, x):
         self.reactor.stop()
 
-
 class RunBlueMOT(ButtonActionWidget):
-    name = 'Run Blue MOT w/ manual MOT Coils'
+    name = 'Run Steady-state Blue MOT'
     servername = 'conductor'
     
     @inlineCallbacks
     def onButtonPressed(self):
-        server = yield self.cxn.get_server(self.servername)
         request = {
-            'sequencer.sequence': ['blue_mot_ss_wo_coil']
+            'name' : 'blue_mot_ss',
+            'parameters': {},  # passed to reload_parameters
+            'parameter_values': {'sequencer.sequence':[
+                        'blue_mot_ss',] },
+            'loop' : False,
             }
-        yield server.set_parameter_values(json.dumps(request))
+        request_json = json.dumps(request)
         
-        yield self.ni.Trigger_Once_On() # This will trigger ON only once, and then OFF, so you don't have to reload.
+        server = yield self.cxn.get_server(self.servername)
+        
+        yield server.queue_experiment(request_json, True)
+        yield server.ao_off()
+        yield server.trigger_on()
 
 class StopExperiment(ButtonActionWidget):
     name = 'Stop Experiment'
@@ -97,11 +99,8 @@ class StopExperiment(ButtonActionWidget):
     @inlineCallbacks
     def onButtonPressed(self):
         server = yield self.cxn.get_server(self.servername)
-        yield server.stop_experiment()
+        yield server.trigger_off()
         
-        yield self.ni.Trigger_Off()
-        
-#
 class MultipleActionsContainer(QtWidgets.QWidget):
     name = None
     def __init__(self, client_list, reactor, cxn=None):
@@ -124,8 +123,8 @@ class MultipleActionsContainer(QtWidgets.QWidget):
     def closeEvent(self, x):
         self.reactor.stop()
 
-
 if __name__ == '__main__':
+    
     from PyQt5 import QtWidgets
     app = QtWidgets.QApplication([])
     from client_tools import qt5reactor
@@ -134,7 +133,6 @@ if __name__ == '__main__':
     widgets = [
         RunBlueMOT(reactor),
         StopExperiment(reactor),
-#        CommonActionsClient(reactor),
         ]
     widget = MultipleActionsContainer(widgets, reactor)
     widget.show()

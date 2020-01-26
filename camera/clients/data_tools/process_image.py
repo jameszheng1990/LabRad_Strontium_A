@@ -18,6 +18,8 @@ def process_image(image_path, record_type):
         return process_images_fast_eg(images)
     elif record_type == 'abs_img':
         return process_images_absorption_images(images)
+    elif record_type == 'fluo_img':
+        return process_images_fluorescence_images(images)
 
 def process_images_g(images):
     """ process images of g atoms """
@@ -140,10 +142,20 @@ def process_images_absorption_images(images):
     efficiency = 0.50348 
     gain = 0.25
     
-    image = np.array(images['image'])
-    bright = np.array(images['bright'])
-    dark = np.array(images['dark'])
+    image = np.array(images['image'], dtype='f')
+    bright = np.array(images['bright'], dtype='f')
+    dark = np.array(images['dark'], dtype='f')
     
-    od = np.log((image - dark)/(bright - dark))
+    od = (
+        np.log(abs(bright - dark + 0.001)/abs(image - dark+ 0.001))
+          )
     
-    return od
+    return np.flipud(np.fliplr(od))
+
+def process_images_fluorescence_images(images):
+    image = np.array(images['image'], dtype = 'f')
+    bright = np.array(images['bright'], dtype = 'f')
+    
+    atoms = image - bright
+    
+    return np.flipud(np.fliplr(atoms))

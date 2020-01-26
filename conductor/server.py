@@ -105,9 +105,15 @@ class ConductorServer(ThreadedServer):
     is_advancing = False
     verbose = False
     
-    is_triggered = False
+    is_triggered = False # will trigger on when True
+    is_stop = False      # will stop experiment when True
+    is_running = False   # indicates experiment is running when True
+    
     is_first = True
     is_end = False
+    
+    is_ao = True
+    experiment_name = None
     
     def initServer(self):
         self._initialize_parameters(request={}, all=True, suppress_errors=True)
@@ -125,26 +131,26 @@ class ConductorServer(ThreadedServer):
         self._trigger_on()
         
     def _trigger_on(self):
-        self.is_triggered = True
+        if (not self.is_running) and len(self.experiment_queue):
+            self.is_triggered = True
+        else:
+            pass
     
     @setting(102)
     def trigger_off(self, c):
         self._trigger_off()
     
     def _trigger_off(self):
-        # self.is_triggered = False
-        self.is_end = True
-    
-    @setting(103)
-    def get_name(self, c):
-        return self._get_name
-        
-    def _get_name(self):
-        if self.experiment:
-            return self.experiment['name']
+        if self.is_running:
+            self.is_stop = True
         else:
-            return 'empty'
-        
+            pass
+    
+    @setting(104)
+    def ao_off(self, c):
+        self.is_ao = False
+        print(self.is_ao)
+    
     @setting(0)
     def get_configured_parameters(self, c):
         """ Get names of parameters available to the conductor.
@@ -638,7 +644,7 @@ class ConductorServer(ThreadedServer):
             raise ParameterGetValueError(name)
         return value
     
-    @setting(106, request_json='s', all='b')
+    @setting(97, request_json='s', all='b')
     def get_next_parameter_values(self, c, request_json='{}', all=False):
         """ get next parameter values specified in the request 
         
@@ -875,20 +881,17 @@ class ConductorServer(ThreadedServer):
                 experiment = {
                     'name': 'unnamed',
                     'parameters': {},
-                    'terminated_parameters':{},
                     'parameter_values': {},
                     'loop': False,
                     'repeat_shot': False,
                     'experiment_number': 0,
                     'shot_number': 0,
                     }
-                if self.experiment_queue[0]['loop']:
-                    self.experiment_queue.append(self.experiment_queue[0]) # ADD: Will add to queue infinitely if loop is True. 
+
                 experiment.update(self.experiment_queue.popleft())
                 self.experiment = experiment
                 self._fix_experiment_name()
                 self._reload_parameters(experiment['parameters'])
-                self._terminate_parameters(experiment['terminated_parameters'])
                 self._set_parameter_values(experiment['parameter_values'])
                 print("experiment ({}): loaded from queue".format(experiment['name']))
                 self._log_experiment_number()
@@ -911,8 +914,14 @@ class ConductorServer(ThreadedServer):
             # signal that we are advancing
             self.is_advancing = True
             
+            # check if the experiment stops
+            if self.is_stop:
+                print('Experiment stops.')
+                self.is_end = True
+                self.is_stop = False
+                
             # check if this is the first_shot
-            if self.is_first:
+            elif self.is_first:
                 # for the first shot of experiment, you want to write and load.
                 print('This is the first shot of experiments.')
                 self._advance_experiment()
@@ -943,7 +952,7 @@ class ConductorServer(ThreadedServer):
                     # if no exp, meaning that it is end of experiments.
                     if not self.experiment:
                         self.is_end = True
-                    # if yes, meaning this is transition to another first shot of queue experiment.
+                    # if yes, meaning this is transition to the first shot of queued experiment.
                     else:
                         self._advance_parameter_values(suppress_errors=suppress_errors)
                         name = self.experiment.get('name')
@@ -1054,6 +1063,7 @@ class ConductorServer(ThreadedServer):
             experiment_number = 0
         self.experiment['experiment_number'] = experiment_number
         self.experiment['name'] = os.path.join(time_string, '{}#{}'.format(name, experiment_number))
+        self.experiment_name = self.experiment['name']
 
     def _log_experiment_number(self):
         log_path = os.path.join(self.experiment_directory, self.experiment.get('name'))

@@ -17,12 +17,15 @@ class Sequence(ConductorParameter):
     default_value = ['all_off']
 
     loop = True  # Should always be true...
+    is_initiated = False
     call_in_thread = False
     
     ni_servername = 'ni'
 
     sequencer_servername = 'sequencer'
     sequencer_devices = ['AO', 'DIO', 'Z_CLK']  # Make sure Run AO first, then DIO
+    sequencer_devices_ao_off = ['DIO', 'Z_CLK']
+    
     sequencer_master_device = 'Z_CLK'
     
     def initialize(self, config):
@@ -52,40 +55,57 @@ class Sequence(ConductorParameter):
     
     def update(self):
         """ value is list of strings """
-        # first check if we are running
-        request = {self.sequencer_master_device: None}
-        response = json.loads(self.sequencer_server.running(json.dumps(request)))
-        running = response.get(self.sequencer_master_device)
         
         # First, to initialize the device by running default values, and set running to True.
         # This will be done after initialization of LabRad, and in principle won't be called again during experiments..
-        if not running:
+        if not self.is_initiated:
             request = {device_name: self.default_value for device_name in self.sequencer_devices}
             self.sequencer_server.sequence(json.dumps(request))  # Write value
             request = {device_name: True for device_name in self.sequencer_devices}
             self.sequencer_server.running(json.dumps(request))   # Run value
-            print('DAQ running!')
+            self.is_initiated = True
+            print('DAQ initiated!')
         
         # If running, which should always be true after initialization.
         else:
-            # First, check if this is the first shot of experiment.
+            # First, check if this is the first shot of experiment, or transition from one exp to another.
             if self.server.is_first:
-                # Simply check, then write and run.
-                request = {device_name: None for device_name in self.sequencer_devices}
-                what_is_running = json.loads(self.sequencer_server.sequence(json.dumps(request)))
-                what_i_think_is_running = {
-                    device_name: self.value
-                    for device_name in self.sequencer_devices
-                    }
-                if (what_i_think_is_running != what_is_running):
-                    request = {device_name: self.value for device_name in self.sequencer_devices}
-                    self.sequencer_server.sequence(json.dumps(request))  # Write value
                 
-                request = {device_name: True for device_name in self.sequencer_devices}
-                self.sequencer_server.running(json.dumps(request))   # Run value
-                self.server.is_first = False
+                self.server.is_running = True
                 
-                self.log_experiment_sequence()  # LOG Sequences
+                if self.server.is_ao:
+                    # Simply check, then write and run.
+                    request = {device_name: None for device_name in self.sequencer_devices}
+                    what_is_running = json.loads(self.sequencer_server.sequence(json.dumps(request)))
+                    what_i_think_is_running = {
+                        device_name: self.value
+                        for device_name in self.sequencer_devices
+                        }
+                    if (what_i_think_is_running != what_is_running):
+                        request = {device_name: self.value for device_name in self.sequencer_devices}
+                        self.sequencer_server.sequence(json.dumps(request))  # Write value
+                
+                    request = {device_name: True for device_name in self.sequencer_devices}
+                    self.sequencer_server.running(json.dumps(request))   # Run value
+                    self.server.is_first = False
+
+                    self.log_experiment_sequence() # LOG When sequence is changed.
+
+                else:
+                    # Simply check, then write and run.
+                    request = {device_name: None for device_name in self.sequencer_devices_ao_off}
+                    what_is_running = json.loads(self.sequencer_server.sequence(json.dumps(request)))
+                    what_i_think_is_running = {
+                        device_name: self.value
+                        for device_name in self.sequencer_devices_ao_off
+                        }
+                    if (what_i_think_is_running != what_is_running):
+                        request = {device_name: self.value for device_name in self.sequencer_devices_ao_off}
+                        self.sequencer_server.sequence(json.dumps(request))  # Write value
+                
+                    request = {device_name: True for device_name in self.sequencer_devices_ao_off}
+                    self.sequencer_server.running_wo_AO(json.dumps(request))   # Run value
+                    self.server.is_first = False
             
             # If this is not first shot, check if this is the end of shots
             elif self.server.is_end:
@@ -97,25 +117,29 @@ class Sequence(ConductorParameter):
                 self.sequencer_server.sequence(json.dumps(request))  
                 self.server._stop_experiment()
                 self.server._clear_experiment_queue()
-                print('Experiment ends!')
                 
-            # If not first or end, will check if what is running == what we want to run.
-            else:
-                request = {device_name: None for device_name in self.sequencer_devices}
-                what_is_running = json.loads(self.sequencer_server.sequence(json.dumps(request)))
-                what_i_think_is_running = {
-                    device_name: self.value
-                    for device_name in self.sequencer_devices
-                    }
-                if (what_i_think_is_running != what_is_running):
-                    request = {device_name: self.value for device_name in self.sequencer_devices}
-                    self.sequencer_server.sequence(json.dumps(request))  # Write value
+                self.server.is_running = False # set to not running, wait for next trigger.
+                
+                # AO will be reset to True after experiment ends.
+                if not self.server.is_ao:
+                    self.server.is_ao = True
                     
-                    self.log_experiment_sequence() # LOG When sequence is changed.
-    
-                request = {device_name: True for device_name in self.sequencer_devices}
-                self.sequencer_server.running(json.dumps(request))   # Run value
+                print('Experiment ends!')
             
+            # If not first or end, this would be during shot to shot, or looping.
+            else:
+                self.server.is_running = True
+                
+                if self.server.is_ao:
+                    #simply run, there is no reason that sequence would change..
+                    request = {device_name: True for device_name in self.sequencer_devices}
+                    self.sequencer_server.running(json.dumps(request))   # Run value
+                    
+                else:
+                    #simply run..
+                    request = {device_name: True for device_name in self.sequencer_devices_ao_off}
+                    self.sequencer_server.running_wo_AO(json.dumps(request))   # Run value
+                    
         callInThread(self._advance_on_trigger)
 
     def _advance_on_trigger(self):
@@ -129,7 +153,7 @@ class Sequence(ConductorParameter):
             is_triggered = self.conductor_server.check_trigger()
             if is_triggered:
                 return
-            time.sleep(0.01)
+                time.sleep(0.01)
 
     def _mark_timestamp(self):
         request = {'timestamp': time.time()}
@@ -148,15 +172,18 @@ class Sequence(ConductorParameter):
         return sequencer_parameter_values
     
     def log_experiment_sequence(self):
-        name = self.server._get_name()
-        log_path = os.path.join(self.server.experiment_directory, name.split('\\')[0], 'sequences\\', name.split('\\')[1]+'_sequence')
-        log_dir, log_name = os.path.split(log_path)
-        if not os.path.isdir(log_dir):
-            os.makedirs(log_dir)
-        with open(log_path, 'w') as outfile:
-            request = {device_name: None for device_name in self.sequencer_devices}
-            sequence = json.loads(self.sequencer_server.log_sequence(json.dumps(request)))
-            json.dump(sequence, outfile)
-        print('Log experiment!')
+        name = self.server.experiment_name
+        try:
+            log_path = os.path.join(self.server.experiment_directory, name.split('\\')[0], 'sequences\\', name.split('\\')[1]+'_sequence')
+            log_dir, log_name = os.path.split(log_path)
+            if not os.path.isdir(log_dir):
+                os.makedirs(log_dir)
+            with open(log_path, 'w') as outfile:
+                request = {device_name: None for device_name in self.sequencer_devices}
+                sequence = json.loads(self.sequencer_server.log_sequence(json.dumps(request)))
+                json.dump(sequence, outfile)
+                print('Log experiment!')
+        except:
+            pass
         
 Parameter = Sequence

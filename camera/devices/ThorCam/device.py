@@ -9,22 +9,14 @@ class TCam(DefaultDevice):
     _compression = 'gzip'
     _compression_level = 4
     
-    # def __init__(self, **kwargs):
-    #     for key, value in kwargs.items():
-    #         setattr(self, key, value)
-        # if 'tcam' not in globals():
-        #     global tcam
-        #     import andor_server2.andor as andor
-            
     def initialize(self, config):
         super(TCam, self).initialize(config)
         self.connect_to_labrad()
         
-    # def _setup(self):
-    #     # tcam.set_default()
-    #     pass
-    
     def record(self, record_path = None, record_type = None, record_setting={}):
+        """ To be implemented by child class """
+    
+    def config(self, record_type = None):
         """ To be implemented by child class """
     
     def _save(self, images, record_path):

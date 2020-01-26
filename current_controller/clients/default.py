@@ -36,7 +36,7 @@ class CurrentControllerClient(QtWidgets.QGroupBox):
     locki = 0
     lockf = 0
     
-    relock_state = True
+    relock_state = False
     relock_status = False
     stop_status = False
     
@@ -105,7 +105,7 @@ class CurrentControllerClient(QtWidgets.QGroupBox):
         self.relockLabel = ClickableLabel('Enable ReLock: ')
         self.relockButton = QtWidgets.QCheckBox()
         
-        self.currentLabel = ClickableLabel('Current [mA]: ')
+        self.currentLabel = ClickableLabel('Current: ')
         self.currentBox = QtWidgets.QDoubleSpinBox()
         self.currentBox.setKeyboardTracking(False)
         self.currentBox.setRange(*self.device._current_range)
@@ -113,50 +113,58 @@ class CurrentControllerClient(QtWidgets.QGroupBox):
         self.currentBox.setDecimals(
                 abs(int(np.floor(np.log10(self.currentStepsize)))))
 #        self.currentBox.setAccelerated(True)
+        self.currentBox.setSuffix(' mA')
 
-        self.powerLabel = ClickableLabel('MonCurrent [uA]: ')
+        self.powerLabel = ClickableLabel('MonCurrent: ')
         self.powerBox = QtWidgets.QDoubleSpinBox()
         self.powerBox.setRange(0, 3e3)
         self.powerBox.setReadOnly(True)
         self.powerBox.setButtonSymbols(QtWidgets.QAbstractSpinBox.NoButtons)
         self.powerBox.setDecimals(1)
+        self.powerBox.setSuffix(' uA')
         
-        self.scaniLabel = ClickableLabel('Scan i [mA]: ')
+        self.scaniLabel = ClickableLabel('Scan i: ')
         self.scaniBox = QtWidgets.QDoubleSpinBox()
         self.scaniBox.setKeyboardTracking(False)
         self.scaniBox.setRange(*self.device._current_range)
         self.scaniBox.setSingleStep(self.currentStepsize)
         self.scaniBox.setDecimals(
                 abs(int(np.floor(np.log10(self.currentStepsize)))))
+        self.scaniBox.setSuffix(' mA')
         
-        self.scanfLabel = ClickableLabel('Scan f [mA]: ')
+        self.scanfLabel = ClickableLabel('Scan f: ')
         self.scanfBox = QtWidgets.QDoubleSpinBox()
         self.scanfBox.setKeyboardTracking(False)
         self.scanfBox.setRange(*self.device._current_range)
         self.scanfBox.setSingleStep(self.currentStepsize)
         self.scanfBox.setDecimals(
                 abs(int(np.floor(np.log10(self.currentStepsize)))))
+        self.scanfBox.setSuffix(' mA')
         
-        self.lockiLabel = ClickableLabel('Lock i [mA]: ')
+        self.lockiLabel = ClickableLabel('Lock i: ')
         self.lockiBox = QtWidgets.QDoubleSpinBox()
         self.lockiBox.setRange(0, 1e3)
         self.lockiBox.setReadOnly(True)
         self.lockiBox.setButtonSymbols(QtWidgets.QAbstractSpinBox.NoButtons)
         self.lockiBox.setDecimals(1)
+        self.lockiBox.setSuffix(' mA')
         
-        self.lockfLabel = ClickableLabel('Lock f [mA]: ')
+        self.lockfLabel = ClickableLabel('Lock f: ')
         self.lockfBox = QtWidgets.QDoubleSpinBox()
         self.lockfBox.setRange(0, 1e3)
         self.lockfBox.setReadOnly(True)
         self.lockfBox.setButtonSymbols(QtWidgets.QAbstractSpinBox.NoButtons)
         self.lockfBox.setDecimals(1)
+        self.lockfBox.setSuffix(' mA')
             
-        self.thresholdLabel = ClickableLabel('Lock threshold [uA]: ')
+        self.thresholdLabel = ClickableLabel('Lock threshold: ')
         self.thresholdBox = QtWidgets.QDoubleSpinBox()
         self.thresholdBox.setRange(0, 3e3)
         self.thresholdBox.setReadOnly(True)
         self.thresholdBox.setButtonSymbols(QtWidgets.QAbstractSpinBox.NoButtons)
         self.thresholdBox.setDecimals(1)
+        self.thresholdBox.setSuffix(' uA')
+        
         
         self.plotterClient = PlotterClient(self.reactor, self)
         self.grapherLabel = ClickableLabel('Scan Curve {}: '.format(self.name[-1]))
@@ -593,7 +601,7 @@ class CurrentControllerClient(QtWidgets.QGroupBox):
         if self.stop_status == False:
             mon = self.device.moncurrent
             if mon >= self.threshold:
-                print('{} stays locked.'.format(self.name))
+                # print('{} stays locked.'.format(self.name))
                 self.onNewStatus('Locked.')
                 self.getCurrent()
                 self.getPower()
@@ -680,6 +688,7 @@ if __name__ == '__main__':
     app = QtWidgets.QApplication([])
     from client_tools import qt5reactor 
     qt5reactor.install()
+    
     from twisted.internet import reactor
 
     widgets = [
@@ -691,4 +700,4 @@ if __name__ == '__main__':
     widget = MultipleClientContainer(widgets, reactor)
     widget.show()
     reactor.suggestThreadPoolSize(30)
-    reactor.run()
+    reactor.runReturn()

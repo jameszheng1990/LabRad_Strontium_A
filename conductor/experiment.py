@@ -23,7 +23,7 @@ class Experiment(object):
         request_json = json.dumps(request, default=json_defaults)
         if run_immediately:
             cxn.conductor.queue_experiment(request_json, True)
-            cxn.conductor.stop_experiment()
+            # cxn.conductor.stop_experiment()
         else:
             cxn.conductor.queue_experiment(request_json)
 

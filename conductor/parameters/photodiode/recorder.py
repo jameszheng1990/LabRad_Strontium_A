@@ -63,7 +63,7 @@ class Recorder(ConductorParameter):
     def update(self):
         shot_number = self.server.experiment.get('shot_number')
         is_end = self.server.is_end
-        if self.value is not None and shot_number is not None and not is_end:
+        if (self.value is not None) and (shot_number is not None) and (not is_end):
             request = {self.pd_name: self.value}
             self.cxn.pd.record(json.dumps(request))
             print('PD data recorded, shot#{}.'.format(shot_number))

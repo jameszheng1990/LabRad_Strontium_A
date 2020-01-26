@@ -1,7 +1,7 @@
 from camera.clients.default import CameraClient
 
 class TOFtcamClient(CameraClient):
-    name = 'TOF tcam'
+    name = 'TOFtcam' # Name MUST be the same as device_name
 
 
 if __name__ == '__main__':
