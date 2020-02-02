@@ -149,7 +149,7 @@ class SequencerServer(DeviceServer):
         return response
 
     @setting(13, request_json='s', tmpdir='b')
-    def fix_sequence_keys(self, c, request_json='{}', tmpdir=True):
+    def fix_sequence_keys(self, c, request_json='{}', tmpdir=False):
         """ client sends list of strings, device by device, we go into sequence folder, read, fix, write
 
         slave devices go after master device so they can fill in missing channel sequences (default to manual outs)
@@ -161,7 +161,7 @@ class SequencerServer(DeviceServer):
         response_json = json.dumps(response)
         return response_json
     
-    def _fix_sequence_keys(self, request={}, tmpdir=True):
+    def _fix_sequence_keys(self, request={}, tmpdir=False):
         response = {}
         for device_name, device_request in request.items():
             device = self._get_device(device_name)

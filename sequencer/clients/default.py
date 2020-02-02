@@ -3,6 +3,7 @@ import time
 import numpy as np
 import os
 import sys
+import copy
 
 from PyQt5 import QtGui, QtCore, Qt, QtWidgets
 from PyQt5.QtCore import pyqtSignal
@@ -58,7 +59,7 @@ class SequencerClient(QtWidgets.QWidget):
     analog_height = 50
     max_columns = 100
     
-    timing_channel = "Trigger@D15" 
+    timing_channel = "3D MOT AOM@D00" 
     master_channel = timing_channel
     
     
@@ -362,7 +363,14 @@ class SequencerClient(QtWidgets.QWidget):
             sequence = self.getSequence()
             for board, channels in self.channels.items():
                 for c in channels:
-                    sequence[c].insert(i, sequence[c][i])
+                    if 'type' in sequence[c][i].keys():
+                        a = {}
+                        dt = sequence[c][i]['dt']
+                        vf = sequence[c][i]['vf']
+                        a.update({'type':'s', 'dt': dt, 'vf': vf})
+                        sequence[c].insert(i+1, a)
+                    else:
+                        sequence[c].insert(i, sequence[c][i])
             self.displaySequence(sequence)
         return ac
 

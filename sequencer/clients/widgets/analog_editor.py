@@ -294,7 +294,15 @@ class AnalogVoltageEditor(QtWidgets.QDialog):
         def ac():
             sequence = self.get_sequence()
             for c in sequence.keys():
-                sequence[c].insert(i, sequence[c][i])
+                if 'type' in sequence[c][i].keys():
+                    a = {}
+                    dt = sequence[c][i]['dt']
+                    vf = sequence[c][i]['vf']
+                    a.update({'type':'s', 'dt': dt, 'vf': vf})
+                    sequence[c].insert(i+1, a)
+                else:
+                    sequence[c].insert(i, sequence[c][i])
+                # sequence[c].insert(i, sequence[c][i])
             self.set_sequence(sequence)
         return ac
 

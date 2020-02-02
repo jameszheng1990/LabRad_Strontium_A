@@ -54,7 +54,7 @@ class YeSrAnalogBoard(YeSrSequencerBoard):
         #c.key: channel 
         
         def type_to_bool(data):
-            if data == 's':
+            if data == 's': # only True for 's' ramp
                 return True
             else:
                 return False
@@ -67,7 +67,7 @@ class YeSrAnalogBoard(YeSrSequencerBoard):
             clk_list = list(map(bool, [reduce(lambda x, y: x*y, i) for i in type_list])) # ONLY when all rows are 's' will return True 
             
             return clk_list # False means variable clock will not apply on the sequence.
-            
+        
         clk_function = get_clk_function(sequence)
         
         ni_sequence = []   
@@ -89,17 +89,13 @@ class YeSrAnalogBoard(YeSrSequencerBoard):
             #TODO: if clk = True, out [x]*1), else, out [x]*dt/interval...
             for ramp in channel.programmable_sequence:
                 if ramp['clk'] == True:
-                    #WILL apply variable clock
-                    if ramp['dv'] == 0:
-                        single_seq = [ramp['vi']]
-                    else:
-                        #There is no way that 'dv' !=0 and still apply the variable clock
-                        print('Error in clock sequence and function.')
-                        break
+                    #WILL apply variable clock, every sub-sequence should be 's' in this case
+                    single_seq = [ramp['vf']]  # change from vi to vf, same below.. this will jump to vf for 's' ramp if vf != vi
+                    
                 else:
                     #WILL NOT apply variable clock
-                    if ramp['dv'] == 0:
-                        single_seq = [ramp['vi']]*int(round(ramp['dt']/ao_interval))
+                    if 'dv_s' in ramp: # this should only exists in 's' ramp.
+                        single_seq = [ramp['vf']]*int(round(ramp['dt']/ao_interval))
                     else:
                         single_seq = list(np.linspace(ramp['vi'], ramp['vf'], int(round(ramp['dt']/ao_interval))))                
                 channel_seq.extend(single_seq)

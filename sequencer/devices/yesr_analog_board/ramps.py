@@ -2,7 +2,7 @@ from sequencer.devices.timing import config
 import numpy as np
 
 rate = config().set_ao_rate()
-DT_TICK = 2*1/rate # time for one clock tick
+DT_TICK = 1/rate # minimum dt, 2 us.
 
 MAX_DT = DT_TICK / 2 * 2**30 - 1
 
@@ -61,15 +61,17 @@ class SRamp(object):
         to list of linear ramps [{dt, dv}]
         """
         p = self.p
+        
         return [
-#                {
-#                    'dt': DT_TICK, 
-#                    'dv': p['vf'] - p['_vi']
-#                }, 
+                # {
+                #     'dt': DT_TICK, 
+                #     'dv': p['vf'] - p['_vi']
+                # }, 
                 {
 #                    'dt': p['dt'] - DT_TICK, 
                     'dt': p['dt'] , 
-                    'dv': 0 , 
+                    'dv': p['vf'] - p['_vi'],
+                    'dv_s' : 0,
                     'clk': p['clk']
                 }
             ]
@@ -115,14 +117,13 @@ class SLinRamp(object):
         """
         p = self.p
         return ([
-#                {
-#                    'dt': DT_TICK, 
-#                    'dv': p['vi'] - p['_vi']
-#                }, 
                 {
-#                    'dt': p['dt'] - DT_TICK, 
-#                    'dv': p['vf'] - p['vi']
-                    'dt': p['dt'], 
+                    'dt': DT_TICK, 
+                    'dv': p['vi'] - p['_vi'],
+                    'clk': p['clk']
+                }, 
+                {
+                    'dt': p['dt'] - DT_TICK, 
                     'dv': p['vf'] - p['vi'],
                     'clk': p['clk']
                 }
@@ -169,30 +170,33 @@ class SExpRamp(object):
         seq = exp_ramp(p, ret_seq=True)
 #        DT_TICK = 18 / 48e6
         return (
-#                [
-#                {
-#                    'dt': DT_TICK, 
-#                    'dv': p['vi'] - p['_vi'],
-#                }
-#           ] 
-#           + 
-#           [
-#                {
-#                    'dt': s['tf'] - s['ti'] - DT_TICK, 
-#                    'dv': s['vf'] - s['vi'],
-#                } 
-#                for s in seq[:1]
-#           ]
-#           +
+                [
+                {
+                    'dt': DT_TICK, 
+                    'dv': p['vi'] - p['_vi'],
+                    'clk': p['clk']
+                }
+          ] 
+          + 
+          [
+                {
+                    'dt': s['tf'] - s['ti'] - DT_TICK, 
+                    'dv': s['vf'] - s['vi'],
+                    'clk': s['clk']
+                } 
+                for s in seq[:1]
+          ]
+          +
            [
                 {
                     'dt': s['tf'] - s['ti'], 
                     'dv': s['vf'] - s['vi'],
                     'clk': s['clk']
                 } 
-#                for s in seq[1:]
-                for s in seq[:]
-           ])
+                for s in seq[1:]
+                # for s in seq[:]
+           ]
+           )
 
 class RampMaker(object):
     available_ramps = {

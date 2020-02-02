@@ -24,7 +24,7 @@ class DIO(YeSrDigitalBoard):
         YeSrDigitalChannel(loc=['D', 12], name='None3', mode='auto', manual_output=False, invert=False),
         YeSrDigitalChannel(loc=['D', 13], name='None4', mode='auto', manual_output=False, invert=False),
         YeSrDigitalChannel(loc=['D', 14], name='None5', mode='auto', manual_output=False, invert=False),
-        YeSrDigitalChannel(loc=['D', 15], name='Trigger', mode='auto', manual_output=False, invert=False),  #AI card trigger
+        YeSrDigitalChannel(loc=['D', 15], name='AI Trigger', mode='auto', manual_output=False, invert=False),  #AI card trigger
         
         YeSrDigitalChannel(loc=['D', 16], name='None6', mode='auto', manual_output=False, invert=False),
         YeSrDigitalChannel(loc=['D', 17], name='None7', mode='auto', manual_output=False, invert=False),

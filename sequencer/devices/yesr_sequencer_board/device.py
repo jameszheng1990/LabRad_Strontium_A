@@ -19,14 +19,15 @@ class YeSrSequencerBoard(DefaultDevice):
     conductor_servername = 'conductor'
 
     channels = None
+    total_channels = {}
     
     sequence_directory = 'C:\\LabRad\\SrSequences\\{}\\'
     subsequence_names = None
     sequence = None
     raw_sequene = None
     is_master = False
-    master_channel = 'Trigger@D15'
-    run_priority = 0    
+    master_channel = "3D MOT AOM@D00"
+    run_priority = 0 
 
     loading = False
     running = False
@@ -40,6 +41,7 @@ class YeSrSequencerBoard(DefaultDevice):
         
         for channel in self.channels:
             channel.set_board(self)
+            self.total_channels.update({channel.key: None})
         
         self.connect_to_labrad()
         
@@ -129,26 +131,59 @@ class YeSrSequencerBoard(DefaultDevice):
         """ to be implemented by child class """
 
 
-    def fix_sequence_keys(self, subsequence_names, tmpdir):
+    # def fix_sequence_keys(self, subsequence_names, tmpdir):
+    #     for subsequence_name in set(subsequence_names):
+    #         subsequence = self.load_sequence(subsequence_name)
+    #         master_subsequence = subsequence[self.master_channel]
+    #         for channel in self.channels:
+    #             channel_subsequence = None
+    #             matched_key = self.match_sequence_key(subsequence, channel.key)
+    #             if matched_key:
+    #                 channel_subsequence = subsequence.pop(matched_key)
+    #             if not channel_subsequence:
+    #                 channel_subsequence = [
+    #                     self.default_sequence_segment(channel, s['dt'])
+    #                         for s in master_subsequence
+    #                     ]
+    #             subsequence.update({channel.key: channel_subsequence})
+
+    #         self.save_sequence(subsequence, subsequence_name, tmpdir)
+
+    def fix_sequence_keys(self, subsequence_names, tmpdir = False):
         for subsequence_name in set(subsequence_names):
             subsequence = self.load_sequence(subsequence_name)
-            master_subsequence = subsequence[self.master_channel]
+            master_channel_subsequence = subsequence[self.master_channel]
             for channel in self.channels:
-                channel_subsequence = None
+                channel_subsequence = []
                 matched_key = self.match_sequence_key(subsequence, channel.key)
                 if matched_key:
                     channel_subsequence = subsequence.pop(matched_key)
                 if not channel_subsequence:
                     channel_subsequence = [
                         self.default_sequence_segment(channel, s['dt'])
-                            for s in master_subsequence
+                            for s in master_channel_subsequence
                         ]
                 subsequence.update({channel.key: channel_subsequence})
+                
+            self.save_sequence(subsequence, subsequence_name, False)    
 
-            self.save_sequence(subsequence, subsequence_name, tmpdir)
-    
+    def combine_subsequences(self, subsequence_list):
+        combined_sequence = {}
+        for channel_key in self.total_channels.keys():
+            channel_sequence = []
+            for subsequence in subsequence_list:
+                channel_sequence += subsequence[channel_key]
+            combined_sequence[channel_key] = channel_sequence
+        return combined_sequence
     
     def set_sequence(self, device_name, subsequence_names):
+        try:
+            self._set_sequence(device_name, subsequence_names)
+        except:
+            self.fix_sequence_keys(subsequence_names)
+            self._set_sequence(device_name, subsequence_names)
+
+    def _set_sequence(self, device_name, subsequence_names):
         self.subsequence_names = subsequence_names
         self.device_name = device_name
         
@@ -156,34 +191,35 @@ class YeSrSequencerBoard(DefaultDevice):
         for subsequence_name in subsequence_names:
             subsequence = self.load_sequence(subsequence_name)
             subsequence_list.append(subsequence)
-
-        raw_sequence = combine_sequences(subsequence_list)
-        self.set_raw_sequence(raw_sequence)
+        
+        raw_sequence = self.combine_subsequences(subsequence_list)
+        # raw_sequence = combine_sequences(subsequence_list)
+        self.set_raw_sequence(raw_sequence, device_name)
 
     def get_sequence(self):
         return self.subsequence_names
     
-    def set_raw_sequence(self, raw_sequence):
+    def set_raw_sequence(self, raw_sequence, device_name):
         self.raw_sequence = raw_sequence
         parameter_names = self.get_sequence_parameter_names(raw_sequence)
         parameter_values = self.get_sequence_parameter_values(parameter_names)
         programmable_sequence = self.substitute_sequence_parameters(raw_sequence, parameter_values)
         
-        if self.device_name == 'AO':
+        if device_name == 'AO':
             sequence_bytes = self.make_sequence_bytes(programmable_sequence) # TODO
             
             self.set_loading(True)
             self.ni.Write_AO_Sequence(sequence_bytes)
             self.set_loading(False)
          
-        elif self.device_name == 'DIO':
+        elif device_name == 'DIO':
             sequence_bytes = self.make_sequence_bytes(programmable_sequence) # TODO
 
             self.set_loading(True)
             self.ni.Write_DO_Sequence(sequence_bytes)
             self.set_loading(False)
             
-        elif self.device_name == 'Z_CLK':
+        elif device_name == 'Z_CLK':
             sequence_bytes = self.make_clk_sequence(programmable_sequence)
             
             self.set_loading(True)

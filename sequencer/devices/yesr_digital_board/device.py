@@ -21,20 +21,21 @@ do_interval = 1/do_rate      # DO sample interval, twice of the desired sample i
 
 path_buffer = os.path.join(os.getenv('PROJECT_LABRAD_TOOLS_PATH'), "ni_server", "buffer", "buffer")
 
-def get_clk_function(sequence):
-    seq_list = [v for s, v in sequence.items()]
-    analog_list = [i for i in seq_list if 'type' in i[0]]
-    type_list = [[type_to_bool(j['type'])  for j in i] for i in analog_list]
-    type_list = list(map(list, zip(*type_list))) # Transpose
-    clk_list = list(map(bool, [reduce(lambda x, y: x*y, i) for i in type_list])) # ONLY when all rows are 's' will return True 
-            
-    return clk_list # False means variable clock will not apply on the sequence.
-
+# ONLY when all rows are 's' will return True 
 def type_to_bool(data):
     if data == 's':
         return True
     else:
         return False
+
+def get_clk_function(sequence):
+    seq_list = [v for s, v in sequence.items()]
+    analog_list = [i for i in seq_list if 'type' in i[0]]
+    type_list = [[type_to_bool(j['type'])  for j in i] for i in analog_list]
+    type_list = list(map(list, zip(*type_list))) # Transpose
+    clk_list = list(map(bool, [reduce(lambda x, y: x*y, i) for i in type_list]))
+    
+    return clk_list # False means variable clock will not apply on the sequence.
 
 class YeSrDigitalBoard(YeSrSequencerBoard):
     sequencer_type = 'digital'
@@ -85,12 +86,6 @@ class YeSrDigitalBoard(YeSrSequencerBoard):
             else:
                 ticks = time_to_ticks(do_interval, dt)
                 return [out]*ticks
-        
-        def type_to_bool(data):
-            if data == 's':
-                return True
-            else:
-                return False
 
         clk_function = get_clk_function(sequence)
         
@@ -154,7 +149,6 @@ class YeSrDigitalBoard(YeSrSequencerBoard):
         clk_sequence.extend([True, False])
         
         # return clk_sequence  # in Boolean
-        
         np.save(path_buffer, clk_sequence)
         
         return path_buffer
