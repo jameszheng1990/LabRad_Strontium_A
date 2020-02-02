@@ -23,7 +23,7 @@ class Sequence(ConductorParameter):
     ni_servername = 'ni'
 
     sequencer_servername = 'sequencer'
-    sequencer_devices = ['AO', 'DIO', 'Z_CLK']  # Make sure Run AO first, then DIO
+    sequencer_devices = ['AO', 'DIO', 'Z_CLK']  # Make sure Run Z_CLK last
     sequencer_devices_ao_off = ['DIO', 'Z_CLK']
     
     sequencer_master_device = 'Z_CLK'
@@ -82,6 +82,7 @@ class Sequence(ConductorParameter):
                         for device_name in self.sequencer_devices
                         }
                     if (what_i_think_is_running != what_is_running):
+                        print('Writing DAQ tasks.')
                         request = {device_name: self.value for device_name in self.sequencer_devices}
                         self.sequencer_server.sequence(json.dumps(request))  # Write value
                 
@@ -100,6 +101,7 @@ class Sequence(ConductorParameter):
                         for device_name in self.sequencer_devices_ao_off
                         }
                     if (what_i_think_is_running != what_is_running):
+                        print('Writing DAQ tasks.')
                         request = {device_name: self.value for device_name in self.sequencer_devices_ao_off}
                         self.sequencer_server.sequence(json.dumps(request))  # Write value
                 

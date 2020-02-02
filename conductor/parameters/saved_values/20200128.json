@@ -1,0 +1,1 @@
+{"data_recorder": "20200128\\red_mot#139\\16.tcam", "timestamp": "20200128\\red_mot#139\\15.tcam", "blue_slaves.1.is_locked": true, "blue_slaves.2.is_locked": true, "blue_slaves.3.is_locked": true, "sequencer.previous_sequence": ["all_off"], "sequencer.sequence": ["blue_mot_long", "red_mot", "image_absorption_red", "wait_1s"], "thorlabs_ccd.record_path": "20200128/tcam"}

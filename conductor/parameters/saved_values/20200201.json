@@ -1,0 +1,1 @@
+{"data_recorder": null, "timestamp": null, "blue_slaves.1.is_locked": false, "blue_slaves.2.is_locked": false, "blue_slaves.3.is_locked": false, "red_mot.A.frequency_modulation": null, "sequencer.previous_sequence": ["all_off"], "sequencer.sequence": ["blue_mot_long", "all_off"], "thorlabs_ccd.record_path": null}

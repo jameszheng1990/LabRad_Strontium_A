@@ -23,6 +23,8 @@ class RecordPath(ConductorParameter):
         'image_absorption_blue' : 'abs_img',
         'image_absorption_red' : 'abs_img',
         'image_absorption_red_fast' : 'abs_img',
+        'image_absorption_red_swap' : 'abs_img',
+        
         'image_fluorescence_blue' : 'fluo_img',
         'image_fluorescence_red' : 'fluo_img',
         'image_fluorescence_red_fast' : 'fluo_img',
@@ -78,15 +80,15 @@ class RecordPath(ConductorParameter):
         if (self.value is not None) and (shot_number is not None) and (not is_end):
             
             config_file = {
-                    'bit_depth' : 8,
+                    'bit_depth' : 10,
                     'camera' : 'ThorCam FS',
                     'roi_shape' : [1280, 1024],
                     'roi_pos' : [0, 0],
-                    'exposure' : 10, # in ms
-                    'frametime' : 40.0, # in ms, wait time between shot to shot > exposure time + frame time
+                    'exposure' : 0.2, # in ms
+                    'frametime' : 20.0, # in ms, wait time between shot to shot > exposure time + frame time
                     'timeout' : 120, # in s
                     'delay'   : 5, # in us
-                    'buffer_size': 3,  # store 3 images in memory
+                    'buffer_size': 2, # store 2 images in memory
                     }
             
             request1 = {
