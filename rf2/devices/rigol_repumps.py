@@ -1,0 +1,154 @@
+import numpy as np
+import time
+
+class Repump_SG(object):
+    # _visa_address = 'USB0::0x1AB1::0x0642::DG1ZA201701875::INSTR'
+    _visa_address = 'USB0::0x1AB1::0x0643::DG8A212801146::INSTR'
+#    _baud_rate = 9600
+#    _write_termination = '\n'
+#    _read_termination = '\n'
+    _timeout = 5000
+    _source1 = 1
+    _source2 = 2
+    
+    _dc_v_range = (0, 2.5)
+    _ramp_freq_range = (0, 10e3)
+    
+    def __init__(self, **kwargs):
+        for key, value in kwargs.items():
+            setattr(self, key, value)
+        if 'visa' not in globals():
+            global visa
+            import visa
+        rm = visa.ResourceManager()
+        self._inst = rm.open_resource(self._visa_address)
+
+    def _write_to_slot(self, command):
+        self._inst.write(command)
+    
+    def _query_to_slot(self, command):
+        response = self._inst.query(command)
+        return response.strip()
+    
+    #Channel 1 for 679 nm, channel 2 for 707 nm
+    
+    @property
+    def shape1(self):
+        command = ':SOUR{}:FUNC?'.format(self._source1)
+        response = self._query_to_slot(command)
+        if response == 'DC':
+            return True
+        else:
+            return False
+        
+    @shape1.setter
+    def shape1(self, boolean):
+        if boolean:
+            command = ':SOUR{}:FUNC DC'.format(self._source1)
+            self._write_to_slot(command)
+        else:
+            command = ':SOUR{}:FUNC RAMP'.format(self._source1)
+            self._write_to_slot(command)
+    
+    @property
+    def dc1(self):
+        command = ':SOUR{}:APPL?'.format(self._source1)
+        response = self._query_to_slot(command)
+        response2 = response.rstrip('"').lstrip('"')
+        response3 = response2.split(",")
+        return float(response3[-1])
+    
+    @dc1.setter
+    def dc1(self, request):
+        min_v = self._dc_v_range[0]
+        max_v = self._dc_v_range[1]
+        request = sorted([min_v, request, max_v])[1]
+        command = ':SOUR{}:APPL:DC DEF,DEF,{}'.format(self._source1, request)
+        self._write_to_slot(command)
+        
+    @property
+    def ramp1(self):
+        command = ':SOUR{}:APPL?'.format(self._source1)
+        response = self._query_to_slot(command)
+        response2 = response.rstrip('"').lstrip('"')
+        response3 = response2.split(",")
+        return float(response3[1]), float(response3[2]), float(response3[3])
+    
+    @ramp1.setter
+    def ramp1(self, request):
+        freq = request[0]
+        min_freq = self._ramp_freq_range[0]
+        max_freq = self._ramp_freq_range[1]
+        freq = sorted([min_freq, freq, max_freq])[1]
+        
+        amp = request[1]
+        offset = request[2]
+        command = ':SOUR{}:APPL:RAMP {},{},{},0'.format(self._source1, freq, amp, offset)
+        self._write_to_slot(command)
+        
+    @property
+    def shape2(self):
+        command = ':SOUR{}:FUNC?'.format(self._source2)
+        response = self._query_to_slot(command)
+        if response == 'DC':
+            return True
+        else:
+            return False
+        
+    @shape2.setter
+    def shape2(self, boolean):
+        if boolean:
+            command = ':SOUR{}:FUNC DC'.format(self._source2)
+            self._write_to_slot(command)
+        else:
+            command = ':SOUR{}:FUNC RAMP'.format(self._source2)
+            self._write_to_slot(command)
+    
+    @property
+    def dc2(self):
+        command = ':SOUR{}:APPL?'.format(self._source2)
+        response = self._query_to_slot(command)
+        response2 = response.rstrip('"').lstrip('"')
+        response3 = response2.split(",")
+        return float(response3[-1])
+    
+    @dc2.setter
+    def dc2(self, request):
+        min_v = self._dc_v_range[0]
+        max_v = self._dc_v_range[1]
+        request = sorted([min_v, request, max_v])[1]
+        command = ':SOUR{}:APPL:DC DEF,DEF,{}'.format(self._source2, request)
+        self._write_to_slot(command)
+        
+    @property
+    def ramp2(self):
+        command = ':SOUR{}:APPL?'.format(self._source2)
+        response = self._query_to_slot(command)
+        response2 = response.rstrip('"').lstrip('"')
+        response3 = response2.split(",")
+        return float(response3[1]), float(response3[2]), float(response3[3])
+    
+    @ramp2.setter
+    def ramp2(self, request):
+        freq = request[0]
+        min_freq = self._ramp_freq_range[0]
+        max_freq = self._ramp_freq_range[1]
+        freq = sorted([min_freq, freq, max_freq])[1]
+        
+        amp = request[1]
+        offset = request[2]
+        command = ':SOUR{}:APPL:RAMP {},{},{},0'.format(self._source2, freq, amp, offset)
+        self._write_to_slot(command)
+        
+class RepumpSGProxy(Repump_SG):
+    _visa_servername = 'visa'
+
+    def __init__(self, cxn=None, **kwargs):
+        from visa_server.proxy import VisaProxy
+        if cxn == None:
+            import labrad
+            cxn = labrad.connect()
+        global visa
+        visa_server = cxn[self._visa_servername]
+        visa = VisaProxy(visa_server)
+        Repump_SG.__init__(self, **kwargs)
