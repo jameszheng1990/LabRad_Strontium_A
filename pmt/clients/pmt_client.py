@@ -1,30 +1,33 @@
 import json
 import h5py
 import os
-from PyQt4 import QtGui, QtCore
+from PyQt5 import QtGui, QtCore, QtWidgets
 from twisted.internet.defer import inlineCallbacks, returnValue
 import numpy as np
 import matplotlib
-matplotlib.use('Qt4Agg')
+matplotlib.use('Qt5Agg')
 import matplotlib.pyplot as plt
-from matplotlib.backends.backend_qt4agg import FigureCanvasQTAgg as FigureCanvas
-from matplotlib.backends.backend_qt4agg import NavigationToolbar2QT as NavigationToolbar
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 from matplotlib.figure import Figure
 
 from client_tools.connection import connection
 
 class MplCanvas(FigureCanvas):
     def __init__(self):
-        fig, ax = plt.subplots(1)
-        self.fig = fig
-        self.ax = ax
-
+        # fig, ax = plt.subplots(1)
+        # self.fig = fig
+        # self.ax = ax
+        
+        self.fig = Figure()
         self.fig.set_tight_layout(True)
 
         FigureCanvas.__init__(self, self.fig)
-        self.setFixedSize(600, 300)
+        self.ax = self.fig.add_subplot(111)
+        
+        self.setFixedSize(800, 500)
 
-class PMTViewer(QtGui.QDialog):
+class PMTViewer(QtWidgets.QDialog):
     pmt_name = None
     data_dir = None
 
@@ -53,7 +56,7 @@ class PMTViewer(QtGui.QDialog):
         self.canvas = MplCanvas()
         self.nav = NavigationToolbar(self.canvas, self)
         
-        self.layout = QtGui.QGridLayout()
+        self.layout = QtWidgets.QGridLayout()
         self.layout.setSpacing(0)
         self.layout.setContentsMargins(0, 0, 0, 0)
         
