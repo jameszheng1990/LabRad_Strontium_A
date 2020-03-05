@@ -2,7 +2,7 @@ import numpy as np
 import time
 
 class RedAFG(object):
-    _visa_address = 'USB0::0x0699::0x0358::C011390::INSTR'
+    _vxi11_address = '192.168.1.23'
     
     scaleRange = (0, 500)
     offsetRange = (-5, 5)
@@ -10,25 +10,35 @@ class RedAFG(object):
     def __init__(self, **kwargs):
         for key, value in kwargs.items():
             setattr(self, key, value)
-        if 'visa' not in globals():
-            global visa
-            import visa
-        rm = visa.ResourceManager()
-        self._inst = rm.open_resource(self._visa_address)
+        if 'vxi11' not in globals():
+            global vxi11
+            import vxi11
+        self._inst = vxi11.Instrument(self._vxi11_address)
 
-    def _write_to_slot(self, command):
-        self._inst.write(command)
-    
-    def _query_to_slot(self, command):
-        response = self._inst.query(command)
-        return response.strip()
-    
     #Channel 1 for 689-A, 2 for 689-B
+    
+    @property
+    def stop(self):
+        pass
+    
+    @stop.setter
+    def stop(self, c):
+        command = 'SEQC:STOP'
+        self._inst.write(command)
+        
+    @property
+    def run(self):
+        pass
+    
+    @run.setter
+    def run(self, c):
+        command = 'SEQC:RUN'
+        self._inst.write(command)
     
     @property
     def scale1(self):
         command = 'SEQC:SOUR1:SCAL?'
-        response = self._query_to_slot(command)
+        response = self._inst.ask(command)
         return float(response)
     
     @scale1.setter
@@ -37,12 +47,12 @@ class RedAFG(object):
         max_scale = self.scaleRange[1]
         scale = sorted([min_scale, scale, max_scale])[1]
         command = 'SEQC:SOUR1:SCAL {}'.format(scale)
-        self._write_to_slot(command)
+        self._inst.write(command)
 
     @property
     def scale2(self):
         command = 'SEQC:SOUR2:SCAL?'
-        response = self._query_to_slot(command)
+        response = self._inst.ask(command)
         return float(response)
     
     @scale2.setter
@@ -51,17 +61,17 @@ class RedAFG(object):
         max_scale = self.scaleRange[1]
         scale = sorted([min_scale, scale, max_scale])[1]
         command = 'SEQC:SOUR2:SCAL {}'.format(scale)
-        self._write_to_slot(command)
+        self._inst.write(command)
         
 class RedAFGProxy(RedAFG):
-    _visa_servername = 'visa'
+    _vxi11_servername = 'vxi11'
 
     def __init__(self, cxn=None, **kwargs):
-        from visa_server.proxy import VisaProxy
+        from vxi11_server.proxy import Vxi11Proxy
         if cxn == None:
             import labrad
             cxn = labrad.connect()
-        global visa
-        visa_server = cxn[self._visa_servername]
-        visa = VisaProxy(visa_server)
+        global vxi11
+        vxi11_server = cxn[self._vxi11_servername]
+        vxi11 = Vxi11Proxy(vxi11_server)
         RedAFG.__init__(self, **kwargs)
