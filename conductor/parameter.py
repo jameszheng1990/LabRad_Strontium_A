@@ -186,7 +186,10 @@ class ConductorParameter(object):
         
         # append value to end of queue if looping
         # if loop and self.value_queue:
-        if loop:  # ADD, above doesn't work for queue = [0]..
+        if loop and self.value_queue:  # ADD, above doesn't work for queue = [].. ??
+            self.value_queue.append(self.value)
+        
+        if loop and (self.value_type in ['seq_list']):
             self.value_queue.append(self.value)
 
     def _advance(self, loop):
