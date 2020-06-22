@@ -81,11 +81,13 @@ class niFrontPanelProxy(object):
         sequence_json = json.dumps(sequence)
         self._server.write_ao_sequence(sequence_json)
     
-    def Write_CLK_Sequence(self, sequence):
+    def Write_CLK_Sequence(self, sequence_path):
+    # def Write_CLK_Sequence(self, sequence):
         """Writes the Clk sequence to Dev0.
         """
-        sequence_json = json.dumps(sequence)
-        self._server.write_clk_sequence(sequence_json)
+        # sequence_json = json.dumps(sequence)
+        # self._server.write_clk_sequence(sequence)
+        self._server.write_clk_sequence(sequence_path)
     
     def Start_AO_Sequence(self):
         """

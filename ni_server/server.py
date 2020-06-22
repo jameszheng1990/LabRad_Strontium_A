@@ -18,6 +18,7 @@ timeout = 20
 import nidaqmx, json, time
 from nidaqmx.constants import LineGrouping
 import numpy as np
+import h5py
 
 from twisted.internet.defer import DeferredLock
 from labrad.server import setting
@@ -42,10 +43,11 @@ class NIServer(ThreadedServer):
         self.clk_channel_ao = 'PFI1'
         
         self.rate_clk = config().set_clk()
-        self.source = '100kHzTimebase'
-#        self.source = 'PXI_Clk10'
-        # self.source = 'PFI0'  #External CLK source input
+        # self.source = '100kHzTimebase'
+        # self.source = 'PXI_Clk10' # Internal clock source, 10 MHz
+        self.source = 'PFI0'  #External CLK source input, 10 MHz
         self.timeout_clk = 150
+        # (Variable clock output is = p0.0)
         
         self.seq_task_ao = None
         self.seq_task_do = None
@@ -61,7 +63,7 @@ class NIServer(ThreadedServer):
     @setting(1)
     def write_ao_manual(self, c, voltage, port):
         """
-        Writes Voltage for ONE channel that we are interested in
+        Writes Voltage for ONE channel that we are interested in.
         """
         if self.seq_task_ao: # Make sure task is close before you add new stuffs.
             self.seq_task_ao.close()
@@ -94,7 +96,7 @@ class NIServer(ThreadedServer):
     @setting(3)
     def write_clk_manual(self, c, boolean):
         """
-        CLK Manual value is always False
+        CLK Manual value is always False.
         """
         if self.seq_task_clk: # Make sure task is close before you add new stuffs.
             self.seq_task_clk.close()
@@ -109,7 +111,6 @@ class NIServer(ThreadedServer):
     @setting(4)
     def write_ao_sequence(self, c, sequence = 's'):
         """
-        AO triggered by the first rising edge from PFI0 channel. Therefore you should run AO first, then DIO (to trigger AO). (NO NEED For variable REF clock)
         NOT all AO channels are written, we selecte channels by the length of sequence, in principle it should be >2.
         """
         sequence_json = json.loads(sequence)
@@ -131,8 +132,8 @@ class NIServer(ThreadedServer):
     @setting(5)
     def write_do_sequence(self, c, sequence = 's'):
         """
-        We write all 32 DIO channels at a time.
-        Default time-out is 60 s, which sets the limit of total sequence length.
+        We write all 32 DO channels at a time.
+        Default time-out is 120 s, which sets the limit of total sequence length.
         """
         sequence_json = json.loads(sequence)
         
@@ -151,24 +152,26 @@ class NIServer(ThreadedServer):
         self.seq_task_do.write(sequence_json, auto_start = False, timeout = -1)
      
     @setting(6)
-    def write_clk_sequence(self, c, sequence = 's'):
+    def write_clk_sequence(self, c, sequence_path = 's'):
+    # def write_clk_sequence(self, c, sequence):
         """
-        We use port0/line0 on AI card (for temporary as of Nov. 26th 2019) as the "Variable Clock Reference" to sample 
-        the DIO card and AO card.
+        We use port0/line0 on AI card as the "Variable Clock Reference" to sample the DO and AO card.
         """
-        sequence_json = json.loads(sequence)
         
-        num_samp = len(sequence_json)
+        sequence = np.load(sequence_path + '.npy').tolist()
+        # sequence = sequence.tolist()
         
+        num_samp = len(sequence)
         if self.seq_task_clk: # Make sure task is close before you add new stuffs.
             self.seq_task_clk.close()
             
         self.seq_task_clk = nidaqmx.Task()
         self.seq_task_clk.do_channels.add_do_chan('Dev0/port0/line0')
+        
         self.seq_task_clk.timing.cfg_samp_clk_timing(rate = self.rate_clk, source = self.source, samps_per_chan = num_samp)    #rate, samps_per_chan
-            
-        self.seq_task_clk.write(sequence_json, auto_start = False, timeout = -1)
-        print('Write sequence to DAQ.')
+        
+        self.seq_task_clk.write(sequence, auto_start = False, timeout = -1)
+        
     
     @setting(11)
     def start_ao_sequence(self, c):
@@ -205,6 +208,7 @@ class NIServer(ThreadedServer):
         
         else:
             print('Sequencer CLK tasks do not exist!')
+            
         
     # @setting(11)
     # def stop_sequence(self, c):
@@ -216,14 +220,14 @@ class NIServer(ThreadedServer):
     #     else:
     #         pass
     
-    @setting(14)
+    @setting(15)
     def read_ai_manual(self, c, port):
         with nidaqmx.Task() as task:
             task.ai_channels.add_ai_voltage_chan("Dev0/ai{}".format(port))
             data = task.read()
         return data
     
-    @setting(15, returns = 's')
+    @setting(16, returns = 's')
     def pd_ai_trigger(self, c, port, samp_rate, n_samp):
         """
         Read Analog-In voltage for PD in Trigger Mode
