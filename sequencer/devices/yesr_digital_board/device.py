@@ -9,6 +9,11 @@ from sequencer.devices.yesr_digital_board.helpers import get_output
 from sequencer.devices.timing import config
 import itertools
 from functools import reduce
+from itertools import chain
+import time
+from functools import reduce
+import numpy as np
+import functools, operator
 
 T_TRIGGER = 2e-3
 
@@ -124,27 +129,26 @@ class YeSrDigitalBoard(YeSrSequencerBoard):
                     b = [False]*int(ticks*factor - 1)
                     a.extend(b)
                     return a
-        
+
         def get_dt(sequence):
             seq_list = [v for s, v in sequence.items()]
             analog_list = [i for i in seq_list if 'type' in i[0]]
             dt_list = [j['dt'] for j in analog_list[0]]
-            
             return dt_list
         
         clk_sequence = []
         
         clk_outlist = get_clk_function(sequence)
         clk_dtlist = get_dt(sequence)
-        
+         
         for c in self.channels:
             if c.key != clk_key:
                 print("Wrong CLK channel, please check 'Z_CLK' board.")
             else:
-                a = [clk_ticks(clk_outlist[i], clk_dtlist[i]) 
-                    for i in range(len(clk_outlist))]
+                a = [clk_ticks(i, j) for i, j in zip(clk_outlist, clk_dtlist)]
+                
+        clk_sequence = functools.reduce(operator.iconcat, a, []) # seems to be faster.. unsure
         
-        clk_sequence = list(itertools.chain(*a))
         # Should end with one more [True, False] pulse edge
         clk_sequence.extend([True, False])
         
@@ -152,3 +156,4 @@ class YeSrDigitalBoard(YeSrSequencerBoard):
         np.save(path_buffer, clk_sequence)
         
         return path_buffer
+        # return np.asarray(clk_sequence)
