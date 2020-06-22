@@ -213,28 +213,6 @@ class SequencerServer(DeviceServer):
         return response
     
     @setting(16)
-    def running_wo_AO(self, c, request_json='{}'):
-        request = json.loads(request_json)
-        response = self._running_wo_AO(request)
-        response_json = json.dumps(response)
-        return response_json
-    
-    def _running_wo_AO(self, request={}):
-        if request == {}:
-            request = {device_name: None for device_name in self.devices}
-        for device_name, device_request in request.items():
-            device = self._get_device(device_name)
-            if device_request is not None:
-                device.set_running_wo_AO(device_name, device_request)  # Add device_name
-        response = {}
-        for device_name in request:
-            device = self._get_device(device_name)
-            device_response = device.get_running()
-            response.update({device_name: device_response})
-        self._send_update({'running': response})
-        return response
-    
-    @setting(17)
     def log_sequence(self, c, request_json='{}'):
         """ Return Loggable sequence for conductor """
         request = json.loads(request_json)
@@ -248,8 +226,9 @@ class SequencerServer(DeviceServer):
         response = {}
         for device_name, device_request in request.items():
             device = self._get_device(device_name)
-            response = device.get_raw_sequence()  # Requenst should be NONE to get
+            response = device.get_programmable_sequence()  # Requenst should be NONE to get
             response.update(response)
+        self._send_update({'logging': response})
         return response
     
 Server = SequencerServer()
