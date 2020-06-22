@@ -112,7 +112,6 @@ class ConductorServer(ThreadedServer):
     is_first = True
     is_end = False
     
-    is_ao = True
     experiment_name = None
     
     def initServer(self):
@@ -145,11 +144,6 @@ class ConductorServer(ThreadedServer):
             self.is_stop = True
         else:
             pass
-    
-    @setting(104)
-    def ao_off(self, c):
-        self.is_ao = False
-        print(self.is_ao)
     
     @setting(0)
     def get_configured_parameters(self, c):
@@ -556,9 +550,18 @@ class ConductorServer(ThreadedServer):
             (dict) {<(str) parameter_name>: <set_value_response>}
         """
         response = {}
-        for parameter_name, parameter_value in request.items():
-            parameter_response = self._set_parameter_value(parameter_name, parameter_value)
-            response.update({parameter_name: parameter_response})
+        for parameter_name1, parameter_value1 in request.items():   # ADD, parameter value in dict fixed.
+            if type(parameter_value1) is dict:
+                for parameter_name2, parameter_value2 in parameter_value1.items():
+                    parameter_name = parameter_name1 + '.' + parameter_name2
+                    parameter_value = parameter_value2
+                    parameter_response = self._set_parameter_value(parameter_name, parameter_value)
+                    response.update({parameter_name: parameter_response})
+            else:
+                parameter_name = parameter_name1
+                parameter_value = parameter_value1
+                parameter_response = self._set_parameter_value(parameter_name, parameter_value)
+                response.update({parameter_name: parameter_response})
         return response
     
     def _set_parameter_value(self, name, value):
@@ -873,6 +876,34 @@ class ConductorServer(ThreadedServer):
 
     def _stop_experiment(self):
         self.experiment = {}
+        
+    def _clear_value_queues(self, request={}):
+        """ clear value queues specified in the request.
+
+        Args:
+            (dict) request: {<(str) parameter_name>: <parameter_value>}
+        Returns:
+            (dict) {<(str) parameter_name>: <set_value_response>}
+        """
+        response = {}
+        for parameter_name, parameter_value in request.items():
+            parameter_response = self._clear_value_queue(parameter_name)
+            response.update({parameter_name: parameter_response})
+        return response
+    
+    def _clear_value_queue(self, parameter_name):
+        """ handle clearing value queue of a single parameter 
+
+        Args:
+            (str) name: name of parameter value to be set
+            (?) value: can be anything...
+        Returns:
+            response of parameter's set_value method.
+        """
+        response = None
+        parameter = self._get_parameter(parameter_name, initialize=True, generic=True)
+        response = parameter._clear_value_queue()
+        return response    
 
     def _advance_experiment(self):
         """ pop experiment from queue """
@@ -891,8 +922,13 @@ class ConductorServer(ThreadedServer):
                 experiment.update(self.experiment_queue.popleft())
                 self.experiment = experiment
                 self._fix_experiment_name()
+                
                 self._reload_parameters(experiment['parameters'])
+                self.saved_reload_parameters = experiment['parameters']
+                
                 self._set_parameter_values(experiment['parameter_values'])
+                self.saved_parameter_values = experiment['parameter_values']
+                
                 print("experiment ({}): loaded from queue".format(experiment['name']))
                 self._log_experiment_number()
             except:
@@ -916,7 +952,7 @@ class ConductorServer(ThreadedServer):
             
             # check if the experiment stops
             if self.is_stop:
-                print('Experiment stops.')
+                print('Stopping experiments.')
                 self.is_end = True
                 self.is_stop = False
                 
