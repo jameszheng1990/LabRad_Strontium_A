@@ -21,13 +21,14 @@ class Lattice_813B_AM(ConductorParameter):
     def update(self):
         experiment = self.server.experiment
         is_end = self.server.is_end 
-        try:    
-            parameter_values = self.server.experiment['parameter_values']
-            if (experiment is not None) and  (not is_end) and ('Lattice 813B AM' in parameter_values['sequencer.AO_parameters']) :
+        parameter_values = self.server.experiment.get('parameter_values')
+        
+        try:
+            if (experiment is not None) and  (not is_end) and ('Lattice 813B AM' in parameter_values.get('sequencer.AO_parameters')) :
                 pass
             else:
                 self.value = None
         except:
             self.value = None
-
+        
 Parameter = Lattice_813B_AM
