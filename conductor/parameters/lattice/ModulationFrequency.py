@@ -3,7 +3,7 @@ import json
 from conductor.parameter import ConductorParameter
 from update.proxy import UpdateProxy
 
-class Frequency(ConductorParameter):
+class ModulationFrequency(ConductorParameter):
     priority = 1
     autostart = False
     call_in_thread = True
@@ -11,21 +11,38 @@ class Frequency(ConductorParameter):
     value = None
 
     def initialize(self, config):
-        super(Frequency, self).initialize(config)
-        # self._update = UpdateProxy('')   # Should have the same name as in GUI client..
+        super(ModulationFrequency, self).initialize(config)
+        self._update = UpdateProxy('Red-B beatnote')   # Should have the same name as in main GUI client..
         self.connect_to_labrad()
     
     def update(self):
         experiment = self.server.experiment
+        is_first = self.server.is_first
+        is_end = self.server.is_end
         
         try:    
             parameter_values = self.server.experiment['parameter_values']
             if (experiment is not None) and ('lattice.ModulationFrequency' in parameter_values) :
+                
+                if is_first:
+                    request = {self.rf_devicename: True} # True for ON
+                    response_json = self.cxn.rf.states(json.dumps(request))
+                    response = json.loads(response_json)
+                    self._update.emit({'state2': response[self.rf_devicename]}) 
+                
                 request = {self.rf_devicename: self.value} # ADD
                 response_json = self.cxn.rf.frequencies(json.dumps(request))
                 self.value = json.loads(response_json)[self.rf_devicename]
-                # self._update.emit({'frequency': self.value})  # Will update value on current controller.. in principle..
+
         except:
             pass
         
-Parameter = Frequency
+        if is_end and (self.value is not None):
+            request = {self.rf_devicename: False} # False for OFF
+            response_json = self.cxn.rf.states(json.dumps(request))
+            response = json.loads(response_json)
+            self._update.emit({'state2': response[self.rf_devicename]})
+            self.value = None
+            
+        
+Parameter = ModulationFrequency
