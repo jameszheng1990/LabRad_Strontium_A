@@ -20,13 +20,14 @@ class red_mot_tof(ConductorParameter):
     def update(self):
         experiment = self.server.experiment
         is_end = self.server.is_end 
-        try:    
-            parameter_values = self.server.experiment['parameter_values']
-            if (experiment is not None) and  (not is_end) and ('red_mot_tof' in parameter_values['sequencer.DO_parameters']) :
+        parameter_values = self.server.experiment.get('parameter_values')
+        
+        try:
+            if (experiment is not None) and  (not is_end) and ('red_mot_tof' in parameter_values.get('sequencer.DO_parameters') ) :
                 pass
             else:
                 self.value = None
         except:
             self.value = None
-
+        
 Parameter = red_mot_tof
