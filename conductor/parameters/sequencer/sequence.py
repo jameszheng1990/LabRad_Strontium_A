@@ -27,6 +27,7 @@ class Sequence(ConductorParameter):
     sequencer_devices_ao_off = ['DIO', 'Z_CLK']
     
     sequencer_master_device = 'Z_CLK'
+    re_write = False
     
     def initialize(self, config):
         super(Sequence, self).initialize(config)
@@ -60,9 +61,9 @@ class Sequence(ConductorParameter):
         # This will be done after initialization of LabRad, and in principle won't be called again during experiments..
         if not self.is_initiated:
             request = {device_name: self.default_value for device_name in self.sequencer_devices}
-            self.sequencer_server.sequence(json.dumps(request))  # Write value
+            self.sequencer_server.sequence(json.dumps(request))  # Write DAQ
             request = {device_name: True for device_name in self.sequencer_devices}
-            self.sequencer_server.running(json.dumps(request))   # Run value
+            self.sequencer_server.running(json.dumps(request))   # Run DAQ
             self.is_initiated = True
             print('DAQ initiated!')
         
@@ -70,77 +71,90 @@ class Sequence(ConductorParameter):
         else:
             # First, check if this is the first shot of experiment, or transition from one exp to another.
             if self.server.is_first:
-                
                 self.server.is_running = True
                 
-                if self.server.is_ao:
-                    # Simply check, then write and run.
-                    request = {device_name: None for device_name in self.sequencer_devices}
-                    what_is_running = json.loads(self.sequencer_server.sequence(json.dumps(request)))
-                    what_i_think_is_running = {
-                        device_name: self.value
-                        for device_name in self.sequencer_devices
-                        }
-                    if (what_i_think_is_running != what_is_running):
-                        print('Writing DAQ tasks.')
-                        request = {device_name: self.value for device_name in self.sequencer_devices}
-                        self.sequencer_server.sequence(json.dumps(request))  # Write value
+                request = {device_name: None for device_name in self.sequencer_devices}
+                what_is_running = json.loads(self.sequencer_server.sequence(json.dumps(request)))
+                what_i_think_is_running = {
+                    device_name: self.value
+                    for device_name in self.sequencer_devices
+                    }
                 
-                    request = {device_name: True for device_name in self.sequencer_devices}
-                    self.sequencer_server.running(json.dumps(request))   # Run value
-                    self.server.is_first = False
-
-                    self.log_experiment_sequence() # LOG When sequence is changed.
-
-                else:
-                    # Simply check, then write and run.
-                    request = {device_name: None for device_name in self.sequencer_devices_ao_off}
-                    what_is_running = json.loads(self.sequencer_server.sequence(json.dumps(request)))
-                    what_i_think_is_running = {
-                        device_name: self.value
-                        for device_name in self.sequencer_devices_ao_off
-                        }
-                    if (what_i_think_is_running != what_is_running):
-                        print('Writing DAQ tasks.')
-                        request = {device_name: self.value for device_name in self.sequencer_devices_ao_off}
-                        self.sequencer_server.sequence(json.dumps(request))  # Write value
+                if (what_i_think_is_running != what_is_running):
+                    print('Writing DAQ tasks.')
+                    request = {device_name: self.value for device_name in self.sequencer_devices}
+                    self.sequencer_server.sequence(json.dumps(request))  # Write DAQ
                 
-                    request = {device_name: True for device_name in self.sequencer_devices_ao_off}
-                    self.sequencer_server.running_wo_AO(json.dumps(request))   # Run value
-                    self.server.is_first = False
+                self.log_experiment_sequence() # LOG When sequence is changed.
+                
+                request = {device_name: True for device_name in self.sequencer_devices}
+                self.sequencer_server.running(json.dumps(request))   # Run DAQ
+                
+                self.server.is_first = False
             
             # If this is not first shot, check if this is the end of shots
             elif self.server.is_end:
                 # Simply end experiments, and reset everything back to default values.
+                
+                request = {self.sequencer_master_device: self.default_value} # Write default value to Z_CLK device
+                self.sequencer_server.sequence(json.dumps(request))  
+                
+                # Add 06/10/20, clear parameter value queues after experiment ends.
+                reset_parameters = self.server.saved_parameter_values
+                for key, value in reset_parameters.items():
+                    reset_parameters[key] = {}
+                self.server._clear_value_queues(reset_parameters)
+                
+                # Add 06/21/20, terminate reloaded parameters after experiment ends.
+                terminated_parameters = self.server.saved_reload_parameters
+                for key, value in terminated_parameters.items():
+                    self.server._terminate_parameter(key)
+                
+                self.server._stop_experiment()
+                self.server._clear_experiment_queue()
+                    
+                print('Experiment ends!')
+                     
                 self.server.is_first = True
                 self.server.is_end = False
                 self.server.is_triggered = False
-                request = {self.sequencer_master_device: self.default_value} # Write default value to Z_CLK device
-                self.sequencer_server.sequence(json.dumps(request))  
-                self.server._stop_experiment()
-                self.server._clear_experiment_queue()
-                
                 self.server.is_running = False # set to not running, wait for next trigger.
+                self.re_write = False
                 
-                # AO will be reset to True after experiment ends.
-                if not self.server.is_ao:
-                    self.server.is_ao = True
-                    
-                print('Experiment ends!')
-            
-            # If not first or end, this would be during shot to shot, or looping.
+            # If not first or end, this would be from shot to shot (like scan), or looping.
             else:
                 self.server.is_running = True
-                
-                if self.server.is_ao:
-                    #simply run, there is no reason that sequence would change..
-                    request = {device_name: True for device_name in self.sequencer_devices}
-                    self.sequencer_server.running(json.dumps(request))   # Run value
+                experiment_loop = self.server.experiment.get('loop')
+                try:
+                    parameter_values = self.server.experiment.get('parameter_values')
+                    do_parameters = parameter_values.get('sequencer.DO_parameters')
+                    ao_parameters = parameter_values.get('sequencer.AO_parameters')
+                    # need to fix why running two experiments (lifetime first, modulation second) will lead to re-write for modulation.... seems to work again..
                     
+                    if do_parameters:
+                        if any(type(value).__name__ == 'list' for key, value in do_parameters.items()):
+                            self.re_write = True
+                    elif ao_parameters:
+                        if any(type(value).__name__ == 'list' for key, value in ao_parameters.items()):
+                            self.re_write = True
+                    else:
+                        self.re_write = False
+                except Exception as e:
+                    print(e)
+                    self.re_write = False
+    
+                # only re-write DAQ when loop is False and if any ao/do_parameter value type is list.
+                if (experiment_loop is False) and self.re_write:
+                    print('Writing DAQ tasks.')
+                    request = {device_name: self.value for device_name in self.sequencer_devices}
+                    self.sequencer_server.sequence(json.dumps(request))  # Write DAQ
+                        
+                    self.log_experiment_sequence() # LOG When sequence is changed.
                 else:
-                    #simply run..
-                    request = {device_name: True for device_name in self.sequencer_devices_ao_off}
-                    self.sequencer_server.running_wo_AO(json.dumps(request))   # Run value
+                    pass
+                
+                request = {device_name: True for device_name in self.sequencer_devices}
+                self.sequencer_server.running(json.dumps(request))   # Run value
                     
         callInThread(self._advance_on_trigger)
 
@@ -180,11 +194,13 @@ class Sequence(ConductorParameter):
             log_dir, log_name = os.path.split(log_path)
             if not os.path.isdir(log_dir):
                 os.makedirs(log_dir)
+                
+            request = {self.sequencer_master_device: None}
+            sequence = json.loads(self.sequencer_server.log_sequence(json.dumps(request)))
+            
             with open(log_path, 'w') as outfile:
-                request = {device_name: None for device_name in self.sequencer_devices}
-                sequence = json.loads(self.sequencer_server.log_sequence(json.dumps(request)))
                 json.dump(sequence, outfile)
-                print('Log experiment!')
+            print('Log experiment!')
         except:
             pass
         
