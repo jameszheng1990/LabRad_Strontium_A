@@ -11,7 +11,6 @@ import itertools
 from functools import reduce
 from itertools import chain
 import time
-from functools import reduce
 import numpy as np
 import functools, operator
 
@@ -75,7 +74,16 @@ class YeSrDigitalBoard(YeSrSequencerBoard):
     def default_sequence_segment(self, channel, dt):
         return {'dt': dt, 'out': channel.manual_output}
 
+    def get_channels_list(self):
+        
+        channels_list = []
+        for c in self.channels:
+            channel = {'key': c.key, 'invert': c.invert}
+            channels_list.append(channel)
+        return channels_list
+    
     def make_sequence_bytes(self, sequence):
+        """ No longer needed, use ni/sequence_generator to generate NI sequence. """
         #c.key: channel 
         #everytime you output all 32 channels together
         
@@ -85,7 +93,7 @@ class YeSrDigitalBoard(YeSrSequencerBoard):
             else:
                 return bool(out)
         
-        def variable_out(out, dt, clk_out):
+        def make_variable_out(out, dt, clk_out):
             if clk_out == True: # Apply Variable Clock
                 return [out]
             else:
@@ -99,13 +107,15 @@ class YeSrDigitalBoard(YeSrSequencerBoard):
         for c in self.channels:
             out_list = [to_bool_inv(s['out'], c.invert) for s in sequence[c.key]]
             dt_list = [s['dt'] for s in sequence[c.key]]
-            var_out = list(map(variable_out, out_list, dt_list, clk_function))
-            var_out = list(itertools.chain.from_iterable(var_out))
+            
+            var_out = [make_variable_out(i, j, k) for i, j, k in zip(out_list, dt_list, clk_function)]
+            var_out = functools.reduce(operator.iconcat, var_out, []) # seems to be faster.. unsure
             ni_sequence.append(var_out)
             
         return ni_sequence  # in Boolean
     
     def make_clk_sequence(self, sequence):
+        """ No longer needed, use ni/sequence_generator to generate NI sequence. """
         # c.key: channel 
         # If clk.out = 1, use high-precision sample clock (1010...), otherwise use (000...).
         # Every timing edge must be ended with "0".
