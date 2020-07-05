@@ -208,14 +208,14 @@ class YeSrSequencerBoard(DefaultDevice):
         self.subsequence_names = subsequence_names
         self.device_name = device_name
         
-        conductor_server = self.cxn[self.conductor_servername]
-        
         subsequence_list = []
         for subsequence_name in subsequence_names:
             subsequence = self.load_sequence(subsequence_name)
             if subsequence_name[:5] == 'PROG_':
                 DO_parameter_name = 'sequencer.DO_parameters.' + subsequence_name[5:]
                 request = json.dumps({DO_parameter_name : None})
+                
+                conductor_server = self.cxn[self.conductor_servername]
                 parameter_values_json = conductor_server.get_parameter_values(request)  
                 parameter_values = json.loads(parameter_values_json)
                 subsequence = self.substitute_sequence_DO_values(subsequence, parameter_values)
@@ -236,26 +236,56 @@ class YeSrSequencerBoard(DefaultDevice):
     
     def set_programmable_sequence(self, programmable_sequence, device_name):
         
+        # t1 =time.time()
+        
         if device_name == 'AO':
-            sequence_bytes = self.make_sequence_bytes(programmable_sequence) # TODO
+            # # Old way
+            # sequence_bytes = self.make_sequence_bytes(programmable_sequence) 
+            
+            # self.set_loading(True)
+            # self.ni.Write_AO_Sequence(sequence_bytes)
+            # self.set_loading(False)
+            
+            raw_sequence = programmable_sequence
+            raw_sequence_channels_list = self.update_sequence_and_channels_list(raw_sequence)
             
             self.set_loading(True)
-            self.ni.Write_AO_Sequence(sequence_bytes)
+            self.ni.Write_AO_Raw_Sequence(raw_sequence_channels_list)
             self.set_loading(False)
-         
+            
+            
         elif device_name == 'DIO':
-            sequence_bytes = self.make_sequence_bytes(programmable_sequence) # TODO
+            
+            # # Old way of doing it....
+            # sequence_bytes = self.make_sequence_bytes(programmable_sequence)
+            # 
+            # self.set_loading(True)
+            # self.ni.Write_DO_Sequence(sequence_bytes)
+            # self.set_loading(False)
+            
+            raw_sequence = programmable_sequence
+            channel_list = self.get_channels_list()
             
             self.set_loading(True)
-            self.ni.Write_DO_Sequence(sequence_bytes)
+            self.ni.Write_DO_Raw_Sequence(raw_sequence, channel_list)
             self.set_loading(False)
         
         elif device_name == 'Z_CLK':
-            sequence_bytes = self.make_clk_sequence(programmable_sequence)
+            
+            ## Old way
+            # sequence_bytes = self.make_clk_sequence(programmable_sequence)
+            # 
+            # self.set_loading(True)
+            # self.ni.Write_CLK_Sequence(sequence_bytes)
+            # self.set_loading(False)
+            
+            raw_sequence = programmable_sequence
             
             self.set_loading(True)
-            self.ni.Write_CLK_Sequence(sequence_bytes)
+            self.ni.Write_CLK_Raw_Sequence(raw_sequence)
             self.set_loading(False)
+            
+        # print(time.time()- t1)
             
     def get_programmable_sequence(self):
         return self.programmable_sequence
@@ -281,10 +311,12 @@ class YeSrSequencerBoard(DefaultDevice):
                 parameter_name.split('@')[0].replace('*', 'sequencer.AO_parameters.'): None
                     for parameter_name in parameter_names
                 }
-            
-            conductor_server = self.cxn[self.conductor_servername]
-            parameter_values_json = conductor_server.get_parameter_values(json.dumps(request))  
-            parameter_values = json.loads(parameter_values_json)
+            try:
+                conductor_server = self.cxn[self.conductor_servername]
+                parameter_values_json = conductor_server.get_parameter_values(json.dumps(request))  
+                parameter_values = json.loads(parameter_values_json)
+            except:
+                parameter_values = {}
         else:
             parameter_values = {}
             
