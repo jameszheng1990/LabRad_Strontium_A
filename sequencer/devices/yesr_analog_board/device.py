@@ -44,13 +44,50 @@ class YeSrAnalogBoard(YeSrSequencerBoard):
             for value, port in zip(co_list, cp_list):
                 self.ni.Write_AO_Manual(value, port)
         else:
-            print("NO manual channels!")
             pass
     
     def default_sequence_segment(self, channel, dt):
         return {'dt': dt, 'type': 's', 'vf': channel.manual_output}
+    
+    def update_sequence_and_channels_list(self, sequence):
+        """ This will update sequence and channels list, make programmable sequence into the return dictionary """
+        def type_to_bool(data):
+            if data == 's': # only True for 's' ramp
+                return True
+            else:
+                return False
 
+        def get_clk_function(sequence):
+            seq_list = [v for s, v in sequence.items()]
+            analog_list = [i for i in seq_list if 'type' in i[0]]
+            type_list = [[ type_to_bool(j['type'])  for j in i ] for i in analog_list]
+            type_list = list(map(list, zip(*type_list))) # Transpose
+            clk_list = list(map(bool, [reduce(lambda x, y: x*y, i) for i in type_list])) # ONLY when all rows are 's' will return True 
+            
+            return clk_list # False means variable clock will not apply on the sequence.
+        
+        clk_function = get_clk_function(sequence)
+        
+        # Update CLK sequence to Analog Keys
+        for channel in self.channels:
+            i=0
+            for s in sequence[channel.key]:
+                s['clk'] = clk_function[i]
+                i += 1
+        
+        for channel in self.channels:
+            sequence[channel.key] = [s for s in sequence[channel.key] if s['dt'] < T_TRIGGER]
+            channel_sequence = sequence[channel.key]
+            channel.set_sequence(channel_sequence)   # Load the defined "ramps: s, lin, slin, exp etc..."
+            
+        sequence_and_channels_list = []
+        for c in self.channels:
+            channel = {'key': c.key, 'programmable_sequence': c.programmable_sequence}
+            sequence_and_channels_list.append(channel)
+        return sequence_and_channels_list
+    
     def make_sequence_bytes(self, sequence):
+        """ No longer needed, use ni/sequence_generator/ to generate NI sequence. """
         #c.key: channel 
         
         def type_to_bool(data):
@@ -90,14 +127,14 @@ class YeSrAnalogBoard(YeSrSequencerBoard):
             for ramp in channel.programmable_sequence:
                 if ramp['clk'] == True:
                     #WILL apply variable clock, every sub-sequence should be 's' in this case
-                    single_seq = [ramp['vf']]  # change from vi to vf, same below.. this will jump to vf for 's' ramp if vf != vi
+                    sub_seq = [ramp['vf']]  # change from vi to vf, same below.. this will jump to vf for 's' ramp if vf != vi
                     
                 else:
                     #WILL NOT apply variable clock
                     if 'dv_s' in ramp: # this should only exists in 's' ramp.
-                        single_seq = [ramp['vf']]*int(round(ramp['dt']/ao_interval))
+                        sub_seq = [ramp['vf']]*int(round(ramp['dt']/ao_interval))
                     else:
-                        single_seq = list(np.linspace(ramp['vi'], ramp['vf'], int(round(ramp['dt']/ao_interval))))                
-                channel_seq.extend(single_seq)
+                        sub_seq = list(np.linspace(ramp['vi'], ramp['vf'], int(round(ramp['dt']/ao_interval))))                
+                channel_seq.extend(sub_seq)
             ni_sequence.append(channel_seq)
         return ni_sequence
