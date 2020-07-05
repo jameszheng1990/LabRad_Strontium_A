@@ -17,6 +17,8 @@ timeout = 20
 """
 import nidaqmx, json, time
 from nidaqmx.constants import LineGrouping
+from nidaqmx.stream_writers import (
+    DigitalSingleChannelWriter, DigitalMultiChannelWriter)
 import numpy as np
 import h5py
 
@@ -25,6 +27,9 @@ from labrad.server import setting
 from server_tools.threaded_server import ThreadedServer
 
 from sequencer.devices.timing import config
+from ni_server.sequence_generator.generator_ao import make_sequence_bytes_ao
+from ni_server.sequence_generator.generator_do import make_sequence_bytes_do
+from ni_server.sequence_generator.generator_clk import make_sequence_bytes_clk
 
 
 class NIServer(ThreadedServer):
@@ -108,8 +113,8 @@ class NIServer(ThreadedServer):
             task.write(boolean, auto_start = True)
             task.stop()
     
-    @setting(4)
-    def write_ao_sequence(self, c, sequence = 's'):
+    @setting(4, sequence = 's')
+    def write_ao_sequence(self, c, sequence):
         """
         NOT all AO channels are written, we selecte channels by the length of sequence, in principle it should be >2.
         """
@@ -129,12 +134,13 @@ class NIServer(ThreadedServer):
         
         self.seq_task_ao.write(sequence_json, auto_start = False, timeout = -1)
     
-    @setting(5)
-    def write_do_sequence(self, c, sequence = 's'):
+    @setting(5, sequence = 's')
+    def write_do_sequence(self, c, sequence):
         """
         We write all 32 DO channels at a time.
         Default time-out is 120 s, which sets the limit of total sequence length.
         """
+        
         sequence_json = json.loads(sequence)
         
         num_samp = len(sequence_json[0])
@@ -150,16 +156,15 @@ class NIServer(ThreadedServer):
         self.seq_task_do.timing.cfg_samp_clk_timing(rate = self.rate_do, source = self.clk_channel_do, samps_per_chan = num_samp)    #rate, samps_per_chan
         
         self.seq_task_do.write(sequence_json, auto_start = False, timeout = -1)
+        
      
-    @setting(6)
-    def write_clk_sequence(self, c, sequence_path = 's'):
-    # def write_clk_sequence(self, c, sequence):
+    @setting(6, sequence_path = 's')
+    def write_clk_sequence(self, c, sequence_path):
         """
         We use port0/line0 on AI card as the "Variable Clock Reference" to sample the DO and AO card.
         """
         
         sequence = np.load(sequence_path + '.npy').tolist()
-        # sequence = sequence.tolist()
         
         num_samp = len(sequence)
         if self.seq_task_clk: # Make sure task is close before you add new stuffs.
@@ -197,9 +202,12 @@ class NIServer(ThreadedServer):
             print('DAQ tasks started.')
             
             self.seq_task_ao.wait_until_done(self.timeout_ao)
+            # print('ao done')
             self.seq_task_do.wait_until_done(self.timeout_do)
+            # print('do done')
             self.seq_task_clk.wait_until_done(self.timeout_clk)
-                   
+            # print('clk done')
+            
             self.seq_task_ao.stop()
             self.seq_task_do.stop() 
             self.seq_task_clk.stop()
@@ -249,7 +257,7 @@ class NIServer(ThreadedServer):
         data_json = json.dumps(data)
         return data_json
     
-    @setting(20)
+    @setting(19)
     def reset_devices(self, c):
         available_devices = list(nidaqmx.system.System.local().devices)
         if available_devices:
@@ -257,10 +265,102 @@ class NIServer(ThreadedServer):
                 device.reset_device()
         else:
             pass
-    
-    
+
+    @setting(20, raw_sequence_channels_list_json ='s')
+    def write_ao_raw_sequence(self, c, raw_sequence_channels_list_json):
+        """
+        NOT all AO channels are written, we selecte channels by the length of sequence, in principle it should be >2.
+        """
+        raw_sequence_channels_list = json.loads(raw_sequence_channels_list_json)
+        sequence_bytes = make_sequence_bytes_ao(raw_sequence_channels_list)
+        
+        num_port = len(sequence_bytes)
+        num_samp = len(sequence_bytes[0])
+        
+        if self.seq_task_ao: # Make sure task is close before you add new stuffs.
+            self.seq_task_ao.close()
+        
+        self.seq_task_ao = nidaqmx.Task()
+        self.seq_task_ao.ao_channels.add_ao_voltage_chan('Dev2/ao0:{}'.format(num_port-1))
+        self.seq_task_ao.timing.cfg_samp_clk_timing(rate = self.rate_ao, source = self.clk_channel_ao, samps_per_chan = num_samp)    #rate, samps_per_chan
+        
+        self.seq_task_ao.write(sequence_bytes, auto_start = False, timeout = -1)
+        
+    @setting(21, raw_sequence_json ='s', channels_list_json = 's')
+    def write_do_raw_sequence(self, c, raw_sequence_json, channels_list_json):
+        """
+        Write all 32 DO channels at a time.
+        Default time-out is 120 s, which sets the limit of total sequence length.
+        Input at this point is json.dump(raw_sequence). 
+        """
+        raw_sequence = json.loads(raw_sequence_json)
+        channels_list = json.loads(channels_list_json)
+        sequence_bytes = make_sequence_bytes_do(raw_sequence, channels_list)
+        
+        num_samp = len(sequence_bytes[0])
+        
+        if self.seq_task_do: # Make sure task is close before you add new stuffs.
+            self.seq_task_do.close()
             
+        self.seq_task_do = nidaqmx.Task()
+        self.seq_task_do.do_channels.add_do_chan('Dev1/port0/line0:7', line_grouping=LineGrouping.CHAN_PER_LINE)
+        self.seq_task_do.do_channels.add_do_chan('Dev1/port1/line0:7', line_grouping=LineGrouping.CHAN_PER_LINE)
+        self.seq_task_do.do_channels.add_do_chan('Dev1/port2/line0:7', line_grouping=LineGrouping.CHAN_PER_LINE)
+        self.seq_task_do.do_channels.add_do_chan('Dev1/port3/line0:7', line_grouping=LineGrouping.CHAN_PER_LINE)
+        self.seq_task_do.timing.cfg_samp_clk_timing(rate = self.rate_do, source = self.clk_channel_do, samps_per_chan = num_samp)    #rate, samps_per_chan
+        
+        self.seq_task_do.write(sequence_bytes, auto_start = False, timeout = -1)
     
+    # @setting(22, raw_sequence_json = 's')
+    # def write_clk_raw_sequence(self, c, raw_sequence_json):
+    #     """
+    #     We use port0/line0 on AI card as the "Variable Clock Reference" to sample the DO and AO card.
+    #     Input at this point is json.dump(raw_sequence). 
+    #     """
+    #     raw_sequence = json.loads(raw_sequence_json)
+        
+    #     sequence_bytes = make_sequence_bytes_clk(raw_sequence)
+        
+    #     t1 = time.time()
+        
+    #     num_samp = len(sequence_bytes)
+    #     if self.seq_task_clk: # Make sure task is close before you add new stuffs.
+    #         self.seq_task_clk.close()
+            
+    #     self.seq_task_clk = nidaqmx.Task()
+    #     self.seq_task_clk.do_channels.add_do_chan('Dev0/port0/line0')
+        
+    #     self.seq_task_clk.timing.cfg_samp_clk_timing(rate = self.rate_clk, source = self.source, samps_per_chan = num_samp)    #rate, samps_per_chan
+        
+    #     self.seq_task_clk.write(sequence_bytes, auto_start = False, timeout = -1)            
+    
+    #     print('DAQ ', time.time() - t1)    
+
+    @setting(22, raw_sequence_json = 's')
+    def write_clk_raw_sequence(self, c, raw_sequence_json):
+        """
+        We use port0/line0 on AI card as the "Variable Clock Reference" to sample the DO and AO card.
+        Input at this point is json.dump(raw_sequence). 
+        """
+        raw_sequence = json.loads(raw_sequence_json)
+        
+        sequence_bytes = make_sequence_bytes_clk(raw_sequence)
+        
+        # t1 = time.time()
+        
+        num_samp = len(sequence_bytes)
+        if self.seq_task_clk: # Make sure task is close before you add new stuffs.
+            self.seq_task_clk.close()
+            
+        self.seq_task_clk = nidaqmx.Task()
+        self.seq_task_clk.do_channels.add_do_chan('Dev0/port0/line0', line_grouping=LineGrouping.CHAN_PER_LINE)
+        self.seq_task_clk.timing.cfg_samp_clk_timing(rate = self.rate_clk, source = self.source, samps_per_chan = num_samp)    #rate, samps_per_chan
+        
+        self.writer_clk = DigitalSingleChannelWriter(self.seq_task_clk.out_stream, auto_start = False)
+        self.writer_clk.write_many_sample_port_byte(sequence_bytes, timeout = -1)    
+    
+        # print('DAQ ', time.time() - t1)    
+        
 Server = NIServer
 
 if __name__ == "__main__":

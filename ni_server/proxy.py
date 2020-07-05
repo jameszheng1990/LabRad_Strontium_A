@@ -1,4 +1,4 @@
-import json
+import json, time
 
 class NIProxy(object):
     def __init__(self, server):
@@ -61,6 +61,27 @@ class niFrontPanelProxy(object):
         """ 
         self._server.write_ao_manual(voltage, port)
 
+    def Write_AO_Sequence(self, sequence):
+        """ Writes a AO sequence to Dev2.
+
+        Args:
+            sequence (str): The sequence must be in string at this level,
+            i.e. '[[...],...,[...]]'
+            use json.dumps(sequence) to implement
+        """
+        sequence_json = json.dumps(sequence)
+        self._server.write_ao_sequence(sequence_json)
+
+    def Write_AO_Raw_Sequence(self, raw_sequence_channels_list):
+        """ Write AO raw sequence to Dev1, using import channels
+
+        Args:
+            sequence (str): The sequence must be in string at this level,
+            i.e. '[[...],...,[...]]'
+        """
+        raw_sequence_channels_list_json = json.dumps(raw_sequence_channels_list)
+        self._server.write_ao_raw_sequence(raw_sequence_channels_list_json)
+        
     def Write_DO_Sequence(self, sequence):
         """ Writes a DO sequence to Dev1.
 
@@ -71,24 +92,28 @@ class niFrontPanelProxy(object):
         sequence_json = json.dumps(sequence)
         self._server.write_do_sequence(sequence_json)
     
-    def Write_AO_Sequence(self, sequence):
-        """ Writes a AO sequence to Dev2.
+    def Write_DO_Raw_Sequence(self, raw_sequence, channels_list):
+        """ Write DO raw sequence to Dev1, using import channels
 
         Args:
             sequence (str): The sequence must be in string at this level,
             i.e. '[[...],...,[...]]'
         """
-        sequence_json = json.dumps(sequence)
-        self._server.write_ao_sequence(sequence_json)
+        raw_sequence_json = json.dumps(raw_sequence)
+        channels_list_json = json.dumps(channels_list)
+        self._server.write_do_raw_sequence(raw_sequence_json, channels_list_json)
     
     def Write_CLK_Sequence(self, sequence_path):
-    # def Write_CLK_Sequence(self, sequence):
         """Writes the Clk sequence to Dev0.
         """
-        # sequence_json = json.dumps(sequence)
-        # self._server.write_clk_sequence(sequence)
         self._server.write_clk_sequence(sequence_path)
-    
+
+    def Write_CLK_Raw_Sequence(self, raw_sequence):
+        """Writes the Clk raw sequence to Dev0.
+        """
+        raw_sequence_json = json.dumps(raw_sequence)
+        self._server.write_clk_raw_sequence(raw_sequence_json)
+        
     def Start_AO_Sequence(self):
         """
         Start AO sequences for conductor.
