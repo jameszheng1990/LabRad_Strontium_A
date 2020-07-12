@@ -235,7 +235,6 @@ class YeSrSequencerBoard(DefaultDevice):
         return self.subsequence_names
     
     def set_programmable_sequence(self, programmable_sequence, device_name):
-        
         # t1 =time.time()
         
         if device_name == 'AO':
