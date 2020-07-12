@@ -1,0 +1,21 @@
+{
+  "wlm_name": "hf_wavemeter",
+  "msquared_name": "M2Sprout",
+  "log_path": "C:\\LabRad\\SrData\\msquared_lock_log",
+  "pid": {
+    "overall_gain": 70.0,
+    "prop_gain": 14.5,
+    "int_gain": 30.0,
+    "diff_gain": 0.0,
+    "range": [
+      25.0,
+      75.0
+    ],
+    "offset": 50.0,
+    "setpoint": 813.505
+  },
+  "wlm": {
+    "channel": 4,
+    "units": "nm"
+  }
+}
