@@ -2,7 +2,6 @@ import numpy as np
 
 name = 'red_mot'
 
-loop = True
 loop = False 
 
 reload_parameters = {
@@ -11,13 +10,13 @@ reload_parameters = {
     'thorlabs_ccd.record_path':{},
     }
 
-scan_A = 79.707e6 + np.arange(-5e3, 5e3, 1e3)
+scan_A = 80e6 + np.arange(-1e6, 1e6, 50e3)
 scan_B = 79.996e6 + np.arange(-500e3, 500e3, 50e3)
 scan_beatnote = 19.354300e6 + np.arange(-2e3, 2e3, 1e3)
 
 parameter_values = {
     
-    # 'red_mot.A_frequency': scan_A,
+    'red_mot.A_frequency': scan_A,
     # 'red_mot.B_frequency': scan_B,
     # 'red_mot.beatnote': scan_beatnote,
     
@@ -26,8 +25,8 @@ parameter_values = {
                     'blue_mot', 
                     # 'blue_mot_long', 
                     # 'red_mot_88',
-                    'red_mot_88_short',
                     # 'red_mot_87', 
+                    'red_mot_87_fast', 
                     'image_absorption_red',
                     ],
         
@@ -53,5 +52,4 @@ if __name__ == '__main__':
 
 import labrad, time
 cxn=labrad.connect()
-# cxn.conductor.ao_off()  # Will remove AO from sequencer.
 cxn.conductor.trigger_on()
