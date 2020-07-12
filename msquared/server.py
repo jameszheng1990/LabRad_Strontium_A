@@ -22,6 +22,8 @@ import sys
 sys.path.append(os.getenv('PROJECT_LABRAD_TOOLS_PATH'))
 
 from labrad.server import Signal, setting
+from twisted.internet import task, defer, reactor
+from twisted.internet.defer import inlineCallbacks, returnValue
 
 from device_server.server import DeviceServer
 from server_tools.decorators import quickSetting
@@ -30,7 +32,7 @@ UPDATE_ID = 698043
 
 class MSquaredServer(DeviceServer):
     """
-    M-squared LabRAD server
+    M-squared server
     """
     update = Signal(UPDATE_ID, 'signal: update', 's')
     name = 'msquared'
@@ -93,11 +95,21 @@ class MSquaredServer(DeviceServer):
     
     def __etalon_lock(self, name, state):
         device = self._get_device(name)
-        if state:
+        if state is not None:
             device.set_etalon_lock(state)
-        response = device.get_etalon_lock()
+            # reactor.callLater(2, self.update_etalon_lock_later, name)
+            response = None
+        elif state is None:
+            response = device.get_etalon_lock()
         return response
     
+    # def update_etalon_lock_later(self, name):
+    #     response = {}
+    #     device = self._get_device(name)
+    #     device_response = device.get_etalon_lock()
+    #     response.update({name: device_response})
+    #     self._send_update({'etalon state': response})
+        
     @setting(12)
     def etalon_tune(self, c, request_json='{}'):
         """ set etalon tune percentage
@@ -194,6 +206,158 @@ class MSquaredServer(DeviceServer):
         response = device.get_resonator_fine_tune()
         return response
 
+    @setting(15)
+    def beam_alignment(self, c, request_json='{}'):
+        """ Controls the operation of the beam alignment,
+            or gets whether the beam alignment is finished,
+            True for done, False means it is still under alignment. """
+        request = json.loads(request_json)
+        response = self._beam_alignment(request)
+        response_json = json.dumps(response)
+        return response_json
+
+    def _beam_alignment(self, request):
+        if request == {}:
+            active_devices = self._get_active_devices()
+            request = {device_name: None for device_name in active_devices}
+        response = {}
+        for device_name, mode in request.items():
+            device_response = None
+            try:
+                device_response = self.__beam_alignment(device_name, mode)
+            except:
+                self._reload_device(device_name, {})
+                device_response = self.__beam_alignment(device_name, mode)
+            response.update({device_name: device_response})
+        self._send_update({'beam_alignment': response})
+        return response
+    
+    def __beam_alignment(self, name, mode):
+        device = self._get_device(name)
+        if mode is not None:
+            device.set_beam_alignment(mode)
+            if mode == 4:
+                self.beamalignment_task = task.LoopingCall(self.beam_alignment_update, name)
+                reactor.callLater(1, self.beamalignment_task.start, 0.5) # Assume the alignment won't finish by 1 seconds, update X, Y every 0.5 seconds.
+            response = None
+        else:
+            response = device.get_beam_alignment()
+        return response
+    
+    def beam_alignment_update(self, name):
+        response = {}
+        response_x = {}
+        response_y = {}
+         
+        device = self._get_device(name)
+        device_response = device.get_beam_alignment()
+        if device_response == True:
+            response.update({name: device_response})
+            self._send_update({'beam_alignment': response})
+            self.beamalignment_task.stop()
+        # Get X, Y value and update on client
+        device_response_x = device.get_x() # TODO: might be get_x_auto here.. have to check later
+        response_x.update({name: device_response_x})
+        self._send_update({'alignment_x_auto': response_x}) # or alignment_auto
+        device_response_y = device.get_y()
+        response_y.update({name: device_response_y})
+        self._send_update({'alignment_y_auto': response_y})        
+
+    @setting(16)
+    def alignment_x(self, c, request_json='{}'):
+        """ Tune X of the beam alignment,
+            or gets the current value of X. """
+        request = json.loads(request_json)
+        response = self._alignment_x(request)
+        response_json = json.dumps(response)
+        return response_json
+
+    def _alignment_x(self, request):
+        if request == {}:
+            active_devices = self._get_active_devices()
+            request = {device_name: None for device_name in active_devices}
+        response = {}
+        for device_name, value in request.items():
+            device_response = None
+            try:
+                device_response = self.__alignment_x(device_name, value)
+            except:
+                self._reload_device(device_name, {})
+                device_response = self.__alignment_x(device_name, value)
+            response.update({device_name: device_response})
+        self._send_update({'alignment_x': response})
+        return response
+    
+    def __alignment_x(self, name, value):
+        device = self._get_device(name)
+        if value is not None:
+            device.set_x(value)
+        response = device.get_x()
+        return response
+
+    @setting(17)
+    def alignment_y(self, c, request_json='{}'):
+        """ Tune Y of the beam alignment,
+            or gets the current value of Y. """
+        request = json.loads(request_json)
+        response = self._alignment_y(request)
+        response_json = json.dumps(response)
+        return response_json
+
+    def _alignment_y(self, request):
+        if request == {}:
+            active_devices = self._get_active_devices()
+            request = {device_name: None for device_name in active_devices}
+        response = {}
+        for device_name, value in request.items():
+            device_response = None
+            try:
+                device_response = self.__alignment_y(device_name, value)
+            except:
+                self._reload_device(device_name, {})
+                device_response = self.__alignment_y(device_name, value)
+            response.update({device_name: device_response})
+        self._send_update({'alignment_y': response})
+        return response
+    
+    def __alignment_y(self, name, value):
+        device = self._get_device(name)
+        if value is not None:
+            device.set_y(value)
+        response = device.get_y()
+        return response
+
+    @setting(18)
+    def wavelength(self, c, request_json='{}'):
+        """ Sets or gets wavelength (rough, preset, don't trust it') """
+        request = json.loads(request_json)
+        response = self._wavelength(request)
+        response_json = json.dumps(response)
+        return response_json
+
+    def _wavelength(self, request):
+        if request == {}:
+            active_devices = self._get_active_devices()
+            request = {device_name: None for device_name in active_devices}
+        response = {}
+        for device_name, value in request.items():
+            device_response = None
+            try:
+                device_response = self.__wavelength(device_name, value)
+            except:
+                self._reload_device(device_name, {})
+                device_response = self.__wavelength(device_name, value)
+            response.update({device_name: device_response})
+        self._send_update({'msq_wavelength': response})
+        return response
+    
+    def __wavelength(self, name, value):
+        device = self._get_device(name)
+        if value is not None:
+            device.set_wavelength(value)
+        response = device.get_wavelength()
+        return response    
+        
 if __name__ == '__main__':
     from labrad import util
     util.runServer(MSquaredServer())
