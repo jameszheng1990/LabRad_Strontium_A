@@ -35,10 +35,12 @@ class Solstis(MSquared):
 
     def get_etalon_lock(self):
         response = self.get('etalon_lock_status')
-        if response:
-            return response['condition'] == 'on'
-        else:
+        if response['condition'] == 'on':
+            return True
+        elif response['condition'] == 'off':
             return False
+        elif response['condition'] == 'low' or 'error':
+            return 'Etalon OFF due to error (i.e. low output)'
     
     def set_etalon_tune(self, value):
         percentage = sorted([0., float(value), 100.])[1]
@@ -66,7 +68,7 @@ class Solstis(MSquared):
 
     def set_resonator_fine_tune(self, value):
         percentage = sorted([0., float(value), 100.])[1]
-        self.set('fine_tune_etalon', percentage)
+        self.set('fine_tune_resonator', percentage)
         self.resonator_fine_tune = percentage
 
     def get_resonator_fine_tune(self):
@@ -76,3 +78,79 @@ class Solstis(MSquared):
         except:
             return 0
 
+    def set_beam_alignment(self, mode):
+        """
+        Mode:
+        1 - Manual
+        2 - Auto
+        3 - Stop
+        4 - One Shot
+        """
+        mode = sorted([1, mode, 4])[1]
+        self.set('beam_alignment', [mode],  # well.. WHY only accepts [int]
+                       key_name='mode')
+    
+    def get_beam_alignment(self):
+        response_json = self.get('get_alignment_status')
+        response = json.loads(response_json)
+        condition = response['message']['parameters']['condition']
+        if condition == 'hold' or  condition == 'manual':
+            return True
+        elif condition == 'automatic':
+            return False
+        else:
+            return False
+
+    def set_x(self, value):
+        value = sorted([0, value, 100])[1]
+        self.set('beam_adjust_x', [value],
+                 key_name = 'x_value')
+        
+    def get_x(self):
+        response_json = self.get('get_alignment_status')
+        response = json.loads(response_json)
+        try:
+            value = response['message']['parameters']['x_alignment'][0]
+            return value
+        except:
+            return 0
+
+    def set_y(self, value):
+        value = sorted([0, value, 100])[1]
+        self.set('beam_adjust_y', [value],
+                 key_name = 'y_value')
+        
+    def get_y(self):
+        response_json = self.get('get_alignment_status')
+        response = json.loads(response_json)
+        try:
+            value = response['message']['parameters']['y_alignment'][0]
+            return value
+        except:
+            return 0
+        
+    def set_wavelength(self, value):
+        """
+        Sets wavelength in nm by using the preset wavelength table,
+        available from 696 to 877 nm.
+        """
+        value = sorted([696, value, 877])[1]
+        self.set('move_wave_t', [value],
+                 key_name = 'wavelength')
+    
+    def get_wavelength(self):
+        response = self.get('get_status')
+        try:
+            return response['wavelength']
+        except:
+            return 0
+        
+        
+        
+        
+        
+        
+        
+        
+        
+        

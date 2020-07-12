@@ -45,6 +45,7 @@ class MSquared(DefaultDevice):
         if key_name == 'setting':
             parameters[key_name] = [parameters[key_name]]
         response_message = self.send(op=setting, parameters=parameters)
+        # print(response_message.to_json())
         ok = response_message.is_ok(status=[0])
         return bool(ok)
     
@@ -53,4 +54,4 @@ class MSquared(DefaultDevice):
         if response_message.is_ok(status=[0]):
             return normalize_parameters(response_message.parameters)
         else:
-            return None
+            return response_message.to_json()
