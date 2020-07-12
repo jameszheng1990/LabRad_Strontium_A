@@ -22,62 +22,82 @@ def get_clk_function(sequence):
     analog_list = [i for i in seq_list if 'type' in i[0]]
     type_list = [[type_to_bool(j['type'])  for j in i] for i in analog_list]
     type_list = list(map(list, zip(*type_list))) # Transpose
-    clk_list = list(map(bool, [reduce(lambda x, y: x*y, i) for i in type_list]))
-    
-    return clk_list # False means variable clock will not apply on the sequence.
+    clk_function = list(map(bool, [reduce(lambda x, y: x*y, i) for i in type_list]))
+    return clk_function # In Boolean. False means variable clock will not apply on the sequence.
 
+# Old way
 def make_sequence_bytes_clk(raw_sequence):
-    def clk_ticks(out, dt):
-        ticks = int(round(dt/do_interval))
-        factor = int(do_interval/clk_interval) # conversion factor from 10 MHz CLK to DO/AO sample rate (0.5 MHz)
-            
-        if ticks < 1:
-            print('dt too small, minimum resolution is 2*1/CLK_rate !')
-        else:
-            if out == False:  # Do not apply Var Clk
-                # a = [True]
-                # b = [False]*int(factor-1)
-                # a.extend(b)
-                # c = a*int(ticks)
-                a = np.array([1], dtype=np.uint8)
-                b = np.repeat(np.array([0], dtype=np.uint8), int(factor-1))
-                a = np.append(a, b)
-                c = np.tile(a, int(ticks))
-                return c
-            elif out == True:  # Apply Var Clk
-                # a = [True]
-                # b = [False]*int(ticks*factor - 1)
-                a = np.array([1], dtype=np.uint8)
-                b = np.repeat(np.array([0], dtype=np.uint8), int(ticks*factor - 1))
-                a = np.append(a, b)
-                return a
-
-    def get_dt(sequence):
-            seq_list = [v for s, v in sequence.items()]
-            analog_list = [i for i in seq_list if 'type' in i[0]]
-            dt_list = [j['dt'] for j in analog_list[0]]
-            return dt_list
+    def get_ticks_list(sequence):
+        seq_list = [v for s, v in sequence.items()]
+        analog_list = [i for i in seq_list if 'type' in i[0]]
+        dt_list = [j['dt'] for j in analog_list[0]]
+        ticks_list = [time_to_ticks(clk_interval, i) for i in dt_list]
+        return ticks_list
         
     clk_sequence = []
         
-    clk_outlist = get_clk_function(raw_sequence)
-    clk_dtlist = get_dt(raw_sequence)
+    clk_function = get_clk_function(raw_sequence)
+    ticks_list = get_ticks_list(raw_sequence)
+    total_ticks = sum(ticks_list)
+    conversion_factor = int(do_interval/clk_interval)
         
-    # t1=time.time()
+    clk_sequence = np.zeros(total_ticks, dtype = np.uint8)
     
-    # clk_sequence = [clk_ticks(i, j) for i, j in zip(clk_outlist, clk_dtlist)]
-    # clk_sequence = functools.reduce(operator.iconcat, clk_sequence, []) # seems to be faster.. unsure
-    clk_sequence = np.array([], dtype = np.uint8)
-    for i, j in zip(clk_outlist, clk_dtlist):
-        clk_sequence = np.append(clk_sequence, clk_ticks(i, j))
+    m = 0
+    for i in range(len(clk_function)):
+        if clk_function[i] == True:
+            # will apply Variable Clock, output in [1000...0000]
+            a = np.array([1], dtype=np.uint8)
+            b = np.zeros(ticks_list[i]-1, dtype =np.uint8)
+            sub_sequence = np.append(a, b)
+        else:
+            # will not apply Variable Clock, output in [10..(k)..010...0...10...0], each is [1] + (k-1)*[0],where k = conversion_factor.
+            a = np.array([1], dtype=np.uint8)
+            b = np.zeros(int(conversion_factor-1), dtype=np.uint8)
+            a = np.append(a, b)
+            sub_sequence = np.tile(a, int(ticks_list[i]/conversion_factor))
+        clk_sequence[m: m+ ticks_list[i]] = sub_sequence
+        m += ticks_list[i]
     
     # Should end with one more [True, False] pulse edge
-    # clk_sequence.extend([True, False])
     clk_sequence = np.append(clk_sequence, np.array([1, 0], dtype=np.uint8))
     
-    # print( 'make clk ', time.time() - t1)
-    
     return clk_sequence
+
+# def make_sequence_bytes_clk(raw_sequence):
+#     def get_ticks_list(sequence):
+#             seq_list = [v for s, v in sequence.items()]
+#             analog_list = [i for i in seq_list if 'type' in i[0]]
+#             ticks_list = [ time_to_ticks(clk_interval, j['dt']) for j in analog_list[0]]
+#             return ticks_list
+    
+#     # t1 = time.time()    
+    
+#     clk_sequence = []
+#     clk_function = get_clk_function(raw_sequence)
+#     ticks_list = get_ticks_list(raw_sequence)
+#     total_ticks = sum(ticks_list) + 2   # end with [1,0] pulse, so total_ticks + 2
+
+#     clk_sequence = np.zeros(total_ticks, dtype = np.uint8) 
+    
+#     k = 0
+
+#     # Too slow below...
+#     for i in range(len(clk_function)):
+#         if clk_function[i] == True: # apply Var Clk, 100..00
+#             clk_sequence[k] = 1
+#             clk_sequence[k+1 : k+ticks_list[i]] = 0
+#         else: # do not apply Var Clk, 1010...10
+#             for j in range(int(ticks_list[i]/2)):
+#                 clk_sequence[k+j: k+j+2] = [1, 0]
+#         k += ticks_list[i]
+    
+#     # Should end with [1, 0] pulse
+#     clk_sequence[-2:] = [1,0]
+    
+#     # print( 'make clk ', time.time() - t1)
+    
+#     return clk_sequence
     
     
     
