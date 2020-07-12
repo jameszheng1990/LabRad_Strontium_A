@@ -4,16 +4,16 @@ import sys
 import os
 import time
 
-from PyQt5 import QtGui, QtCore, Qt, QtWidgets
-from PyQt5.QtCore import pyqtSignal
+from PyQt5 import QtWidgets
+# from PyQt5.QtCore import pyqtSignal
 from twisted.internet.defer import inlineCallbacks
 
-from ecdl.clients.default import ParameterLabel
+# from ecdl.clients.default import ParameterLabel
 
 from client_tools.connection import connection
-from client_tools.widgets import SuperSpinBox
+# from client_tools.widgets import SuperSpinBox
 
-from conductor.experiment import Experiment
+# from conductor.experiment import Experiment
 
 ACTION_WIDTH = 200
 ACTION_HEIGHT = 50
@@ -23,7 +23,8 @@ class ButtonActionWidget(QtWidgets.QPushButton):
     servername = None
     
     ni_servername = 'ni'
-
+    update_id = np.random.randint(0, 2**31 - 1)
+    
     def __init__(self, reactor, cxn=None):
         QtWidgets.QDialog.__init__(self)
         self.reactor = reactor
@@ -36,15 +37,19 @@ class ButtonActionWidget(QtWidgets.QPushButton):
             self.cxn = connection()
             cname = '{} - {} - client'.format(self.servername, self.name)
             yield self.cxn.connect(name=cname)
-            
-        self.populateGUI()
-        yield self.connectSignals()
+        self.context = yield self.cxn.context()
+        try:
+            self.populateGUI()
+            yield self.connectSignals()
+        except Exception as e:
+            print(e)
+            self.setDisable(True)
     
     def populateGUI(self):
-        self.action_button = QtWidgets.QPushButton()
-        self.action_button.setText(self.name)
-        self.layout = QtWidgets.QGridLayout()
-        self.layout.addWidget(self.action_button)
+        # self.action_button = QtWidgets.QPushButton()
+        # self.action_button.setText(self.name)
+        # self.layout = QtWidgets.QGridLayout()
+        # self.layout.addWidget(self.action_button)
         self.setText(self.name)
         
         self.setWindowTitle(self.name)
@@ -53,23 +58,40 @@ class ButtonActionWidget(QtWidgets.QPushButton):
 
     @inlineCallbacks
     def connectSignals(self):
+        conductor_server = yield self.cxn.get_server('conductor')
+        yield conductor_server.signal__update(self.update_id)
+        yield conductor_server.addListener(listener=self.receive_update, source=None, 
+                                     ID=self.update_id)
         yield self.cxn.add_on_connect(self.servername, self.reinitialize)
         yield self.cxn.add_on_disconnect(self.servername, self.disable)
-        self.action_button.released.connect(self.onButtonPressed)
+        # self.action_button.released.connect(self.onButtonPressed)
         self.released.connect(self.onButtonPressed)
+        self.getAll()
+    
+    def receive_update(self, c, signal_json):
+        pass
+    
+    def getAll(self):
+        pass
     
     @inlineCallbacks
     def onButtonPressed(self):
         pass
     
+    @inlineCallbacks
     def reinitialize(self):
         self.setDisabled(False)
+        # server = yield self.cxn.get_server(self.servername)
+        # yield server.signal__update(self.update_id, context=self.context)
+        # yield server.addListener(listener=self.receive_update, source=None,
+        #                           ID=self.update_id, context=self.context)
 
     def disable(self):
         self.setDisabled(True)
 
-    def closeEvent(self, x):
-        self.reactor.stop()
+    # def closeEvent(self, x):
+    #     # self.reactor.stop()
+    #     pass
 
 class RunBlueMOT(ButtonActionWidget):
     name = 'Run Steady-state Blue MOT'
@@ -87,10 +109,19 @@ class RunBlueMOT(ButtonActionWidget):
         request_json = json.dumps(request)
         
         server = yield self.cxn.get_server(self.servername)
+        is_running = yield server.check_running()
+        if is_running:
+            print('Experiment running, please stop first.')
+            pass
+        else:
+            yield server.queue_experiment(request_json, True)
+            yield server.trigger_on()
+    
+    def receive_update(self, c, signal_json):
+        pass
         
-        yield server.queue_experiment(request_json, True)
-        yield server.ao_off()
-        yield server.trigger_on()
+    def getAll(self):
+        pass
 
 class StopExperiment(ButtonActionWidget):
     name = 'Stop Experiment'
@@ -100,7 +131,48 @@ class StopExperiment(ButtonActionWidget):
     def onButtonPressed(self):
         server = yield self.cxn.get_server(self.servername)
         yield server.trigger_off()
+    
+    def receive_update(self, c, signal_json):
+        pass
+    
+    def getAll(self):
+        pass
+
+class PauseToggle(ButtonActionWidget):
+    name = 'PauseToggle'
+    servername = 'conductor'
+    
+    @inlineCallbacks
+    def onButtonPressed(self):
+        server = yield self.cxn.get_server(self.servername)
+        yield server.pause_experiment_toggle()
+        yield self.getPauseState()
         
+    def getAll(self):
+        self.getPauseState()
+    
+    @inlineCallbacks
+    def getPauseState(self):
+        server = yield self.cxn.get_server(self.servername)
+        pause_state = yield server.check_pause()
+        self.DisplayNewPauseState(pause_state)
+    
+    def DisplayNewPauseState(self, pause_state):
+        # print(pause_state)
+        if pause_state:
+            self.setChecked(1)
+            self.setText('Resume Experiment')
+        else:
+            self.setChecked(0)
+            self.setText('Pause Experiment')
+            
+    def receive_update(self, c, signal_json):
+        signal = json.loads(signal_json)
+        for message_type, message in signal.items():
+            if (message_type == 'pause_toggle') and (message is not None):
+                # self.reactor.callInThread(self.getPauseState)
+                self.getPauseState()
+    
 class MultipleActionsContainer(QtWidgets.QWidget):
     name = None
     def __init__(self, client_list, reactor, cxn=None):
@@ -122,9 +194,9 @@ class MultipleActionsContainer(QtWidgets.QWidget):
 
     def closeEvent(self, x):
         self.reactor.stop()
+        # pass
 
 if __name__ == '__main__':
-    
     from PyQt5 import QtWidgets
     app = QtWidgets.QApplication([])
     from client_tools import qt5reactor
@@ -133,6 +205,7 @@ if __name__ == '__main__':
     widgets = [
         RunBlueMOT(reactor),
         StopExperiment(reactor),
+        PauseToggle(reactor),
         ]
     widget = MultipleActionsContainer(widgets, reactor)
     widget.show()
