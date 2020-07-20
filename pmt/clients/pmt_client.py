@@ -80,14 +80,15 @@ class PMTViewer(QtWidgets.QDialog):
     def receive_update(self, c, signal_json):
         signal = json.loads(signal_json)
         for message_type, message in signal.items():
-            print(message_type, message)
+            # print(message_type, message)
             device_message = message.get(self.pmt_name)
             if (message_type == 'record') and (device_message is not None):
                 self.replot(device_message)
 
     def replot(self, rel_data_path):
         abs_data_path = os.path.join(self.data_dir, rel_data_path) + '.hdf5'
-        with h5py.File(abs_data_path) as h5f:
+        
+        with h5py.File(abs_data_path, mode ='r') as h5f:
             gnd = h5f['gnd']
             exc = h5f['exc']
             bac = h5f['bac']
