@@ -179,6 +179,7 @@ class ConductorParameter(object):
         
         # set value
         # If queue={}, value stays the same.
+        
         if self.value_queue:
             self.value = self.value_queue.popleft()
         if self.value_type in ['once']:
@@ -209,3 +210,10 @@ class ConductorParameter(object):
         except:
             traceback.print_exc()
             raise ParameterUpdateError(self.name)
+    
+    #ADD 06/10/2020            
+    def _clear_value_queue(self):
+        
+        if self.value_queue:
+            self.value_queue = deque([])
+            self.value = None
