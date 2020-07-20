@@ -119,6 +119,15 @@ class PicoscopeServer(HardwareInterfaceServer):
         ps = self._get_interface(serial_number)
         return ps.getDataV(channel, numSamples, startIndex, downSampleRatio,
                            downSampleMode, segmentIndex)
+    
+    @setting(19, serial_number='s', resolution = 's')
+    def set_resolution(self, c, serial_number, resolution):
+        """
+        Accepts resolution in string, from '8', '10', to '16'.
+        At 16, only one channel can be used.
+        """
+        ps = self._get_interface(serial_number)
+        ps.setResolution(resolution)
 
 ###    @setting(11, serial_number='s', duration='v', frequency='v')
 ##    def set_sampling_frequency(self, c, serial_number, duration, frequency):

@@ -54,3 +54,6 @@ class PS5000aProxy(object):
 
     def waitReady(self):
         self.server.wait_ready(self.serial_number)
+
+    def setResolution(self, resolution):
+        self.server.set_resolution(self.serial_number, resolution)
