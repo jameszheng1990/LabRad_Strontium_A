@@ -17,8 +17,8 @@ class BluePMT(Picoscope):
     autostart = True
     picoscope_servername = 'picoscope'
     picoscope_serialnumber = 'GX150/0218'
-    picoscope_duration = 0.25e-3
-    picoscope_sampling_interval = 20e-9
+    picoscope_duration = 10e-3
+    picoscope_sampling_interval = 100e-9
     picoscope_frequency = 100e6
     picoscope_n_capture = 3
     picoscope_trigger_threshold = 2 # [V]
@@ -86,27 +86,35 @@ class BluePMT(Picoscope):
 #                                                        segmentIndex=i)
                 data[channel][label] = self.ps.getDataV(channel, self.n_samples,
                                                         segmentIndex=i)
+                
         self.recording = False
 
         raw_data = data['A']
         raw_sums = {label: sum(raw_counts) for label, raw_counts in raw_data.items()}
         raw_fits = {}
-
+        
         b = np.mean(raw_data['bac'])
-        for label, raw_counts in raw_data.items():
-            counts = np.array(raw_counts) - b
-            popt, pcov = curve_fit(fit_function, range(len(counts)), counts, p0=self.p0)
-            raw_fits[label] = popt[0]
-
+        try:
+            for label, raw_counts in raw_data.items():
+                counts = np.array(raw_counts) - b                
+                # popt, pcov = curve_fit(fit_function, range(len(counts)), counts, p0=self.p0)
+                popt, pcov = curve_fit(fit_function, np.arange(len(counts)), counts, p0=self.p0)
+                raw_fits[label] = popt[0]
+                
+        except Exception as e:
+            print('PMT Error:', e)
+            for label, raw_counts in raw_data.items():
+                raw_fits[label] = 0
+                
         tot_sum = raw_sums['gnd'] + raw_sums['exc'] - 2 * raw_sums['bac']
-        frac_sum = (raw_sums['exc'] - raw_sums['bac']) / tot_sum
+        # frac_sum = (raw_sums['exc'] - raw_sums['bac']) / tot_sum
         tot_fit = raw_fits['gnd'] + raw_fits['exc'] - 2 * raw_fits['bac']
-        frac_fit = (raw_fits['exc'] - raw_fits['bac']) / tot_fit
+        # frac_fit = (raw_fits['exc'] - raw_fits['bac']) / tot_fit
 
         processed_data = {
-            'frac_sum': frac_sum,
+            # 'frac_sum': frac_sum,
             'tot_sum': tot_sum,
-            'frac_fit': frac_fit,
+            # 'frac_fit': frac_fit,
             'tot_fit': tot_fit,
             }
          
@@ -128,15 +136,17 @@ class BluePMT(Picoscope):
             h5f.create_dataset(k, data=np.array(v), compression='gzip')
         h5f.close()
         
-        """ temporairly store data """
-        if len(self.record_names) > self.max_records:
-            oldest_name = self.record_names.popleft()
-            if oldest_name not in self.record_names:
-                _ = self.records.pop(oldest_name)
-        self.record_names.append(rel_data_path)
-        self.records[rel_data_path] = processed_data
+        # """ temporairly store data """
+        # if len(self.record_names) > self.max_records:
+        #     oldest_name = self.record_names.popleft()
+        #     if oldest_name not in self.record_names:
+        #         _ = self.records.pop(oldest_name)
+        # self.record_names.append(rel_data_path)
+        # self.records[rel_data_path] = processed_data
         
         message = {'record': {self.name: rel_data_path}}
         self.server._send_update(message)
+        
+        # self.ps.close()
 
 Device = BluePMT

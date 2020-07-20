@@ -26,9 +26,12 @@ class Picoscope(DefaultDevice):
         self.picoscope_server = self.cxn[self.picoscope_servername]
         ps5000a = PicoscopeProxy(self.picoscope_server)
         ps = ps5000a.PS5000a(self.picoscope_serialnumber)
+        
 
         for channel_name, channel_settings in self.picoscope_channel_settings.items():
             ps.setChannel(channel_name, **channel_settings)
+            
+        ps.setResolution('16') 
         response = ps.setSamplingInterval(self.picoscope_sampling_interval, 
                                           self.picoscope_duration)
         self.n_samples = response[1]
@@ -39,9 +42,9 @@ class Picoscope(DefaultDevice):
                             timeout_ms=self.picoscope_timeout)
         ps.memorySegments(self.picoscope_n_capture)
         ps.setNoOfCaptures(self.picoscope_n_capture)
-        
-        self.ps = ps
 
+        self.ps = ps
+        
 #        self.picoscope_server.reopen_interface(self.picoscope_serialnumber)
 #        for channel, settings in self.picoscope_channel_settings.items():
 #            self.picoscope_server.set_channel(self.picoscope_serialnumber, 
