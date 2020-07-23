@@ -16,9 +16,8 @@ class Sequence(ConductorParameter):
     value = ['all_off']
     default_value = ['all_off']
     
-    loop = None # doesn't matter at this moment
+    loop = None # doesn't need this
     previous_sequencer_parameter_values = None
-    # re_write = False
     is_initiated = False
     call_in_thread = False
     
@@ -65,16 +64,19 @@ class Sequence(ConductorParameter):
             print('NI DAQ initiation done!')
         
         else:
+            shot_number = self.server.experiment.get('shot_number')
             # Check if this is the first shot of current experiment  (popped up from queue), then write to DAQ and run
             if self.server.is_first:
-                print('Writing NI DAQ tasks...')
+                print('Writing NI DAQ task shot#{}'.format(shot_number))
                 request = {device_name: self.value for device_name in self.sequencer_devices}
                 self.sequencer_server.sequence(json.dumps(request))  # Write DAQ
                 self.log_experiment_sequence() # LOG When sequence is written
                 
+                print('Running NI DAQ task shot#{}'.format(shot_number))
                 request = {device_name: True for device_name in self.sequencer_devices}
                 self.sequencer_server.running(json.dumps(request))   # Run DAQ
                 
+                print('Done with NI DAQ task shot#{}'.format(shot_number))
                 self.previous_sequencer_parameter_values = self._get_sequencer_parameter_values()
                 self.server.is_first = False
             
@@ -114,14 +116,18 @@ class Sequence(ConductorParameter):
                 # only re-write DAQ when loop is False and sequener parameter values are not the same.
                 if (experiment_loop is False) and (current_sequencer_parameter_values 
                                                    != self.previous_sequencer_parameter_values):
-                    print('Writing NI DAQ tasks...')
+                    
+                    print('Writing NI DAQ task shot#{}'.format(shot_number))
                     request = {device_name: self.value for device_name in self.sequencer_devices}
                     self.sequencer_server.sequence(json.dumps(request))  # Write DAQ
 
                     self.log_experiment_sequence() # LOG When sequence is written
                 
+                print('Running NI DAQ task shot#{}'.format(shot_number))
                 request = {device_name: True for device_name in self.sequencer_devices}
                 self.sequencer_server.running(json.dumps(request))   # Run value
+                
+                print('Done with NI DAQ task shot#{}'.format(shot_number))
                 self.previous_sequencer_parameter_values = current_sequencer_parameter_values
         
         callInThread(self._advance_on_trigger)
