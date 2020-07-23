@@ -54,7 +54,7 @@ def make_sequence_bytes_ao(raw_sequence_channels_list):
                     sub_sequence = np.linspace(ramp['vi'], ramp['vf'], k)
             ni_sequence[i, m: m + k] = sub_sequence
             m += k
-        
+            
     return ni_sequence    
     
     

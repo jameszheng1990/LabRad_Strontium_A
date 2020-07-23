@@ -39,6 +39,7 @@ def make_sequence_bytes_clk(raw_sequence):
     clk_function = get_clk_function(raw_sequence)
     ticks_list = get_ticks_list(raw_sequence)
     total_ticks = sum(ticks_list)
+    
     conversion_factor = int(do_interval/clk_interval)
         
     clk_sequence = np.zeros(total_ticks, dtype = np.uint8)
@@ -51,15 +52,14 @@ def make_sequence_bytes_clk(raw_sequence):
             b = np.zeros(ticks_list[i]-1, dtype =np.uint8)
             sub_sequence = np.append(a, b)
         else:
-            # will not apply Variable Clock, output in [10..(k)..010...0...10...0], each is [1] + (k-1)*[0],where k = conversion_factor.
+            # will not apply Variable Clock, output in [10..(k)..010...0...10...0], each is [1] + (k-1)*[0], where k = conversion_factor.
             a = np.array([1], dtype=np.uint8)
             b = np.zeros(int(conversion_factor-1), dtype=np.uint8)
             a = np.append(a, b)
             sub_sequence = np.tile(a, int(ticks_list[i]/conversion_factor))
         clk_sequence[m: m+ ticks_list[i]] = sub_sequence
         m += ticks_list[i]
-    
-    # Should end with one more [True, False] pulse edge
+    # Should end with one more [True, False] pulse edge, because of AO card.. not sure why
     clk_sequence = np.append(clk_sequence, np.array([1, 0], dtype=np.uint8))
     
     return clk_sequence

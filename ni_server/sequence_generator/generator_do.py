@@ -63,7 +63,7 @@ def make_sequence_bytes_do(raw_sequence, channels):
             for k in range(len(out_list)):
                 ni_sequence[i, m:m + ticks_list[k]] += out_list[k]*2**j
                 m += ticks_list[k]
-    
+                
     return ni_sequence  # in Boolean
 
 
