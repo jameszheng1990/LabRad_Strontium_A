@@ -200,13 +200,9 @@ class NIServer(ThreadedServer):
         if self.seq_task_clk.is_task_done():
             self.seq_task_clk.start()
             
-            try:
-                conductor_server = self.client.conductor
-                shot = conductor_server.get_shotnumber()
-            except:
-                shot = 'N/A'
-                
-            print('NI DAQ tasks shot#{} started...'.format(shot))
+            # conductor_server = self.client.conductor
+            # shot = conductor_server.get_shotnumber()
+            # print('NI DAQ tasks shot#{} started'.format(shot))
             
             self.seq_task_ao.wait_until_done(self.timeout_ao)
             # print('ao done')
@@ -219,7 +215,7 @@ class NIServer(ThreadedServer):
             self.seq_task_do.stop() 
             self.seq_task_clk.stop()
             
-            print('NI DAQ tasks shot#{} done...'.format(shot))
+            # print('NI DAQ tasks shot#{} done'.format(shot))
         
         else:
             print('Sequencer CLK tasks do not exist!')
@@ -374,7 +370,7 @@ class NIServer(ThreadedServer):
         We write all 32 DO channels together at the time where one of the channel output changes.
         We group 8 lines from each port as a channel, so the input should have 4 rows.
         
-        This function works for digital stream out where sequence input are in 2D, 32 rows, 8 bit NumPy array, like [[x, x,..., x], ...], where 0 <= x < 2^{8}.
+        This function works for digital stream out where sequence input are in 2D, 32 rows, 8 bit NumPy array, like [[x, x,..., x], ...], where 0 <= x < 2^8.
         Each row corresponds to a channel in the task. Each column corresponds to a sample to write to each channel.
         Here 0 stands for all off. 1 stands for the first channel on, with 100..0, and so on.
         The elements can be calculated using "element += out_list[i]*2**j for j in range(len(channel))".
