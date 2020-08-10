@@ -1,5 +1,6 @@
 import numpy as np
 import sys
+import time
 
 ERROR_CODE = {
     20001: "DRV_ERROR_CODES",
@@ -108,14 +109,20 @@ class AndorProxy(object):
         """ This function will return the data from the last acquisition. The 
         data are returned as long integers (32-bit signed integers). The "array" 
         must be large enough to hold the complete data set.
+            Read from saved buffer, seems to be much faster than transfering data
+        from LabRad.
 
         Args:
             size (int): total number of pixels.
         Returns:
             (array) image.
         """
-        error, arr = self.andor_server.get_acquired_data(self.serial_number, 
-                                                         size)
+        # error, arr = self.andor_server.get_acquired_data(self.serial_number, 
+        #                                                  size)
+        
+        error, arr_path = self.andor_server.get_acquired_data(self.serial_number, 
+                                                          size)
+        arr = np.load(arr_path)
         self._log(sys._getframe().f_code.co_name, error)
         return np.array(arr, dtype=np.uint32)
     

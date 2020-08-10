@@ -16,6 +16,8 @@ timeout = 5
 ### END NODE INFO
 """
 from labrad.server import setting
+import numpy as np
+import time
 
 from andor_server.andor import Andor
 from server_tools.threaded_server import ThreadedServer
@@ -23,6 +25,7 @@ from server_tools.threaded_server import ThreadedServer
 class AndorServer(ThreadedServer):
     """ Provides access to andor camera using pyandor """
     name = 'andor'
+    buffer_path = 'C:\\LabRad\\SrA\\andor_server\\buffer\\buffer.npy'
 
     def initServer(self):
         global andor
@@ -67,12 +70,15 @@ class AndorServer(ThreadedServer):
         error_code = andor.error['CoolerON']
         return error_code
 
-    @setting(14, serial='i', size='i', returns='i*i')
+    # @setting(14, serial='i', size='i', returns='i*i')
+    @setting(14, serial='i', size='i', returns='is')
     def get_acquired_data(self, c, serial, size):
         self._set_serial(serial)
         arr = andor.GetAcquiredData(size)
         error_code = andor.error['GetAcquiredData']
-        return error_code, arr
+        # return error_code, arr
+        np.save(self.buffer_path, arr)
+        return error_code, self.buffer_path
     
     @setting(15, serial='i', size='i', returns='i*i')
     def get_acquired_data_16(self, c, serial, size):
