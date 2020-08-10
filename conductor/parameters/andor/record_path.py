@@ -77,14 +77,9 @@ class RecordPath(ConductorParameter):
         is_end = self.server.is_end
         parameter_values = self.server.experiment.get('parameter_values')
         
-        if self.value['roi']:
-            self.record_settings['xi'] = self.value.get('roi')[0]
-            self.record_settings['xf'] = self.value.get('roi')[1]
-            self.record_settings['yi'] = self.value.get('roi')[2]
-            self.record_settings['yf'] = self.value.get('roi')[3]
-            
+        self.record_settings = self.value
+        
         if (self.path is not None) and (not is_end) and ('andor' in parameter_values):
-            
             request = {
                 self.device_name: {
                     'record': {
