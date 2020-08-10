@@ -29,8 +29,6 @@ def populate_tabs(tabs, grouped_tabs, reactor):
         j += 1
 
 class Window(QtWidgets.QWidget):
-    name = None
-    
     def __init__(self, grouped_tabs, reactor, name):
         QtWidgets.QDialog.__init__(self)
         self.grouped_tabs = grouped_tabs
@@ -209,16 +207,16 @@ if __name__ == '__main__':
     
 ######################### TAB 4, common actions ###############################
 
-    from conductor.clients.common_action import RunBlueMOT
-    from conductor.clients.common_action import StopExperiment
-    from conductor.clients.common_action import PauseToggle
+    from conductor.clients.default import ConductorControl
             
 ############################ TAB 4, camera ####################################
     
-    from camera.clients.default import CameraClient
+    # from camera.clients.default import CameraClient
+    from camera.clients.Andor_Client import CameraClient
 
     class TOF_tcam_Client(CameraClient):
-        name = 'tcam' # must be the same name of device_name (in /camera/device)
+        # name = 'tcam' # must be the correct device_name (in /camera/device)
+        name = 'ixon' # must be the correct device_name (in /camera/device)
 
 ##################### TAB 5, PMT ##########################
     
@@ -226,7 +224,8 @@ if __name__ == '__main__':
     from pd.clients.pd_client import PDViewer
 
     class PMT(PMTViewer):
-        pmt_name = 'blue_pmt'
+        pmt_name = 'BluePMT'
+        servername = 'pmt'
         data_dir = os.path.join(os.getenv('LABRADDATA'),'data')
         
     class PD(PDViewer):
@@ -268,11 +267,9 @@ if __name__ == '__main__':
             {'Msquared Wavemeter Lock':  {'clients': [WLMLockClient],
                                           'layout':   QtWidgets.QGridLayout()}},
             
-            {'Conductor Controls':       {'clients': [RunBlueMOT,
-                                                      StopExperiment,
-                                                      PauseToggle],
+            {'System Control':           {'clients': [ConductorControl],
                                           'layout':   QtWidgets.QGridLayout()}}
-        ]
+            ]
 
     grouped_tabs_B = [
             {'Plotter':                  {'clients': [Plotter],
@@ -287,9 +284,8 @@ if __name__ == '__main__':
                                                     # PD, # only one at a time..
                                                       PMT],
                                           'layout':   QtWidgets.QGridLayout()}},
-        ] 
+            ] 
         
     widget = Container(grouped_tabs_A,  grouped_tabs_B, grouped_tabs_C, reactor)
-    # widget.show()
     reactor.suggestThreadPoolSize(50)
     reactor.run()
