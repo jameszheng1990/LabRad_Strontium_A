@@ -20,13 +20,16 @@ class RecordPath(ConductorParameter):
         # 'image-clock-fast': 'fast-eg',
         # 'image-clock-fast-side': 'fast-eg',
         
-        'image_test': 'test',
+        'image_raw': 'raw',
+        'PROG_image_raw': 'raw',
+        'image_gain_calibration' :'gain_calibration',
         
         'image_absorption_blue' : 'g_abs_img',
         'image_absorption_red' : 'g_abs_img',
         'image_absorption_red_fast' : 'g_abs_img',
         'image_absorption_lattice' : 'g_abs_img',
         
+        'image_fluorescence_red': 'g_fluo_img',
         'image_fluorescence_lattice': 'g_fluo_img',
         }
     
@@ -74,11 +77,22 @@ class RecordPath(ConductorParameter):
         pass
     
     def update(self):
+        is_first = self.server.is_first
         is_end = self.server.is_end
         parameter_values = self.server.experiment.get('parameter_values')
         
         self.record_settings = self.value
         
+        if (self.path is not None) and (is_first) and ('andor' in parameter_values):
+            request = {
+                self.device_name: {
+                            'record_path': self.path,
+                            'record_type': self.record_type,
+                            'record_settings': self.record_settings,
+                            },
+                }
+            self.cxn.camera.config_ccd(json.dumps(request))
+            
         if (self.path is not None) and (not is_end) and ('andor' in parameter_values):
             request = {
                 self.device_name: {
@@ -92,5 +106,5 @@ class RecordPath(ConductorParameter):
                     },
                 }
             self.cxn.camera.call_in_thread(json.dumps(request))
-            
+        
 Parameter = RecordPath
