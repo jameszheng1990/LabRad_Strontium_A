@@ -19,7 +19,7 @@ class YeSrSequencerBoard(DefaultDevice):
     ni_interface = None
 
     conductor_servername = 'conductor'
-
+    
     channels = None
     total_channels = {}
     
@@ -50,13 +50,13 @@ class YeSrSequencerBoard(DefaultDevice):
         self.ni_server = self.cxn[self.ni_servername]
         ni_proxy = NIProxy(self.ni_server)
         self.ni = ni_proxy.niCFrontPanel()
-                
+        
         self.update_mode()
         self.update_channel_modes()
         self.update_channel_manual_outputs()
         
         
-    def load_sequence(self, sequencename):  # Will trace back for the sequence, starting from Today, yesterday and so on...
+    def load_sequence(self, sequencename):  # look for the sequence, starting from Today, yesterday and so on...
         for i in range(365):
             day = date.today() - timedelta(i)
             sequencepath = self.sequence_directory.format(day.strftime('%Y%m%d')) + sequencename
@@ -218,7 +218,9 @@ class YeSrSequencerBoard(DefaultDevice):
                 conductor_server = self.cxn[self.conductor_servername]
                 parameter_values_json = conductor_server.get_parameter_values(request)  
                 parameter_values = json.loads(parameter_values_json)
-                subsequence = self.substitute_sequence_DO_values(subsequence, parameter_values)
+                parameter_settings_json = conductor_server.get_parameter_settings(request)  
+                parameter_settings = json.loads(parameter_settings_json)
+                subsequence = self.substitute_sequence_DO_values(subsequence, parameter_values, parameter_settings)
                 
             subsequence_list.append(subsequence)
         
@@ -235,16 +237,7 @@ class YeSrSequencerBoard(DefaultDevice):
         return self.subsequence_names
     
     def set_programmable_sequence(self, programmable_sequence, device_name):
-        # t1 =time.time()
-        
         if device_name == 'AO':
-            # # Old way
-            # sequence_bytes = self.make_sequence_bytes(programmable_sequence) 
-            
-            # self.set_loading(True)
-            # self.ni.Write_AO_Sequence(sequence_bytes)
-            # self.set_loading(False)
-            
             raw_sequence = programmable_sequence
             raw_sequence_channels_list = self.update_sequence_and_channels_list(raw_sequence)
             
@@ -252,16 +245,7 @@ class YeSrSequencerBoard(DefaultDevice):
             self.ni.Write_AO_Raw_Sequence(raw_sequence_channels_list)
             self.set_loading(False)
             
-            
         elif device_name == 'DIO':
-            
-            # # Old way of doing it....
-            # sequence_bytes = self.make_sequence_bytes(programmable_sequence)
-            # 
-            # self.set_loading(True)
-            # self.ni.Write_DO_Sequence(sequence_bytes)
-            # self.set_loading(False)
-            
             raw_sequence = programmable_sequence
             channel_list = self.get_channels_list()
             
@@ -270,21 +254,12 @@ class YeSrSequencerBoard(DefaultDevice):
             self.set_loading(False)
         
         elif device_name == 'Z_CLK':
-            
-            ## Old way
-            # sequence_bytes = self.make_clk_sequence(programmable_sequence)
-            # 
-            # self.set_loading(True)
-            # self.ni.Write_CLK_Sequence(sequence_bytes)
-            # self.set_loading(False)
-            
             raw_sequence = programmable_sequence
             
             self.set_loading(True)
             self.ni.Write_CLK_Raw_Sequence(raw_sequence)
             self.set_loading(False)
-            
-        # print(time.time()- t1)
+            # print(programmable_sequence)
             
     def get_programmable_sequence(self):
         return self.programmable_sequence
@@ -344,14 +319,17 @@ class YeSrSequencerBoard(DefaultDevice):
                             i.update({'type':'s', 'vf':parameter_value})
         return raw_sequence
  
-    def substitute_sequence_DO_values(self, subsequence, parameter_values):
-        """this will change the duration of pulses, for example, used for ramsey/rabi or TOF experiment.
+    def substitute_sequence_DO_values(self, subsequence, parameter_values, parameter_settings):
+        """this will change the duration of pulses, i.e., used for ramsey/rabi or TOF experiment.
            only accepts one column.
         """
+        for parameter_key, parameter_setting in parameter_settings.items():
+            if parameter_setting is not None:
+                column = parameter_setting['column']
         for parameter_key, parameter_value in parameter_values.items():
             if parameter_value is not None:
                 for key, value in subsequence.items():
-                    value[0].update({'dt': parameter_value})
+                    value[column].update({'dt': parameter_value})
         return subsequence
     
     def make_sequence_bytes(self, sequence):
@@ -369,28 +347,31 @@ class YeSrSequencerBoard(DefaultDevice):
     def set_loading(self, loading):
         if loading is not None:
             self.loading = loading
-            # self.update_mode()
+            self.update_mode()
     
     def get_loading(self):
         return self.running
     
     def set_running(self, device_name, running):
-        if running is True:
+        if running:            
             if device_name == 'AO':
-                self.running = running
                 self.ni.Start_AO_Sequence()
-            
-            if device_name == 'DIO':
-                self.running = running
-                self.ni.Start_DO_Sequence()
-
-            if device_name == 'Z_CLK':
-                self.running = running
-                self.ni.Start_CLK_Sequence()
                 
-        else:
-            self.running = running
-            
+            if device_name == 'DIO':
+                self.ni.Start_DO_Sequence()
+                
+            if device_name == 'Z_CLK':
+                self.running = True
+                self.ni.Start_CLK_Sequence()
+                self.running = False
+                
+            self.set_modes_auto(device_name)
             
     def get_running(self):
         return self.running
+
+    def set_modes_auto(self, device_name):
+        request = {device_name: {}}
+        for channel in self.channels:
+            request[device_name].update({channel.key: 'auto'})
+        self.server._channel_modes(request)
