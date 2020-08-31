@@ -680,6 +680,75 @@ class ConductorServer(ThreadedServer):
             raise ParameterGetValueError(name)
         return value
     
+    @setting(115, request_json='s', all='b')
+    def get_parameter_settings(self, c, request_json='{}', all=False):
+        """ get parameter settings specified in the request 
+        
+        This method makes the private method "_get_parameter_settings" available
+        over labrad. Look at that method's documentation for exactly how 
+        the parameter values are set
+        
+        Args:
+            (str) request_json: A json dumped dict specifying
+                {<(str) parameter_name>: None}
+            (bool) all: if True, return all parameter_settings.
+
+        Returns:
+            (str) json dumped dict 
+                {<(str) parameter_name>: <parameter_setting>}
+        """
+        request = json.loads(request_json)
+        response = self._get_parameter_settings(request, all)
+        self._send_update({'get_parameter_settings': response})
+        response_json = json.dumps(response, default=lambda x: None)
+        return response_json 
+    
+    def _get_parameter_settings(self, request={}, all=True):
+        """ get parameter values specified in the request.
+
+        Args:
+            (dict) request: {<(str) parameter_name>: None}
+        Returns:
+            (dict) {<(str) parameter_name>: <parameter_setting>}
+        """
+        if (request == {}) and all:
+            active_parameters = self._get_active_parameters()
+            request = {
+                parameter_name: None
+                    for parameter_name, ParameterClass 
+                    in active_parameters.items()
+                }
+        response = {}
+        for parameter_name in request:
+            parameter_setting = self._get_parameter_setting(parameter_name)
+            response.update({parameter_name: parameter_setting})
+        return response
+            
+    def _get_parameter_setting(self, name):
+        """ handle getting setting of a single parameter 
+
+        Args:
+            (str) name: name of parameter setting to be got.
+        Returns:
+            response of parameter's get_setting method.
+        Raises:
+            ParameterGetValueError: raised if we catch some generic error in 
+                the get_setting process.
+        """
+        setting = None
+        try:
+            _ti = time.time()
+            parameter = self._get_parameter(name, initialize=True, generic=True)
+            setting = parameter._get_setting()
+            _tf = time.time()
+            if (_tf - _ti > 0.001) and self.verbose:
+                print(name, _tf - _ti)
+            # test if we will be able to flatten to json
+#            value_json = json.dumps({name: value})
+        except:
+            raise ParameterGetValueError(name)
+        return setting
+    
     @setting(97, request_json='s', all='b')
     def get_next_parameter_values(self, c, request_json='{}', all=False):
         """ get next parameter values specified in the request 
@@ -962,7 +1031,7 @@ class ConductorServer(ThreadedServer):
                 self._set_parameter_values(experiment['parameter_values'])
                 self.saved_parameter_values = experiment['parameter_values']
                 
-                print("experiment ({}): loaded from queue".format(experiment['name']))
+                print("[conductor] Experiment ({}): loaded from queue".format(experiment['name']))
                 self._log_experiment_number()
             except:
                 raise ExperimentAdvanceError()
@@ -985,7 +1054,7 @@ class ConductorServer(ThreadedServer):
             
             # check if pause experiment
             if self.is_paused:
-                print('Experiment Paused')
+                print('[conductor] Experiment paused')
                 while (self.is_paused is True):
                     if (self.is_paused is False):
                         break
@@ -994,10 +1063,10 @@ class ConductorServer(ThreadedServer):
                         break
                     time.sleep(0.1)
             
-                print('Experiment Resumed')
+                print('[conductor] Experiment resumed')
             # check if the experiment stops, if True, this will trigger is_end and ends all experiments
             elif self.is_stop:
-                print('Stopping experiments')
+                print('[conductor] Stopping experiments')
                 self.previous_experiment = self.experiment.copy() # save the previous shot for later
                 self.is_end = True
             
@@ -1008,7 +1077,7 @@ class ConductorServer(ThreadedServer):
                 self._advance_parameter_values(suppress_errors=suppress_errors)
                 name = self.experiment.get('name')
                 shot_number = self.experiment.get('shot_number')
-                print("Experiment ({}): shot {}".format(name, shot_number)) # Basically should be shot#0
+                print("[conductor] Experiment ({}): shot {}".format(name, shot_number)) # Basically should be shot#0
             
             else:
                 # check if you have to repeat shot.
@@ -1018,7 +1087,7 @@ class ConductorServer(ThreadedServer):
                     self.experiment['repeat_shot'] = False
                     name = self.experiment.get('name')
                     shot_number = self.experiment.get('shot_number')
-                    print("Experiment ({}): shot {} repeated".format(name, shot_number))
+                    print("[conductor] Experiment ({}): shot {} repeated".format(name, shot_number))
                 
                 # if no repeat shot, will check if there is remaining_points
                 else:
@@ -1031,7 +1100,7 @@ class ConductorServer(ThreadedServer):
                         name = self.experiment.get('name')
                         self.experiment['shot_number'] += 1
                         shot_number = self.experiment.get('shot_number')
-                        print("Experiment ({}): shot {}".format(name, shot_number))
+                        print("[conductor] Experiment ({}): shot {}".format(name, shot_number))
                 
                     # if there is no remaining_points left, probably means that it is an 'unlooped' experiment.
                     else:
@@ -1044,7 +1113,7 @@ class ConductorServer(ThreadedServer):
                             self._advance_parameter_values(suppress_errors=suppress_errors)
                             name = self.experiment.get('name')
                             shot_number = self.experiment.get('shot_number')
-                            print("Experiment ({}): shot {}".format(name, shot_number))
+                            print("[conductor] Experiment ({}): shot {}".format(name, shot_number))
                             self.is_first = True
                         
             self._update_parameters(suppress_errors=suppress_errors)
@@ -1056,6 +1125,9 @@ class ConductorServer(ThreadedServer):
             if not suppress_errors:
                 raise
         finally:
+            shot_number = self.experiment.get('shot_number')
+            remaining_points = get_remaining_points(self.parameters)
+            self._send_update({'shots': {'current_shot': shot_number, 'remaining_shots': remaining_points}})
             self.is_advancing = False
 
     def _get_parameter(self, name, initialize=False, generic=False):
