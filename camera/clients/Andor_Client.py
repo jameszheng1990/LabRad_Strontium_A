@@ -106,28 +106,29 @@ class CameraClient(QtWidgets.QWidget):
         self.layout.setSpacing(5)
         self.layout.setContentsMargins(5, 5, 5, 5)
         
-        self.layout.addWidget(self.andorLabel, 1, 0, 1, 1)        
-        self.layout.addWidget(self.tempLabel, 2, 0, 1, 1,
+        self.layout.addWidget(self.andorLabel, 1, 0, 1, 2,
+                              QtCore.Qt.AlignCenter)
+        self.layout.addWidget(self.tempLabel, 1, 2, 1, 1,
                               QtCore.Qt.AlignRight)      
-        self.layout.addWidget(self.tempBox, 2, 1, 1, 1)     
-        self.layout.addWidget(self.emgainLabel, 2, 2, 1, 1,
+        self.layout.addWidget(self.tempBox, 1, 3, 1, 1)     
+        self.layout.addWidget(self.emgainLabel, 1, 4, 1, 1,
                               QtCore.Qt.AlignRight)      
-        self.layout.addWidget(self.emgainBox, 2, 3, 1, 1)   
-        self.layout.addWidget(self.exposureLabel, 2, 4, 1, 1,
+        self.layout.addWidget(self.emgainBox, 1, 5, 1, 1)   
+        self.layout.addWidget(self.exposureLabel, 1, 6, 1, 1,
                               QtCore.Qt.AlignRight)      
-        self.layout.addWidget(self.exposureBox, 2, 5, 1, 1)
-        self.layout.addWidget(self.accumulationLabel, 2, 6, 1, 1,
+        self.layout.addWidget(self.exposureBox, 1, 7, 1, 1)
+        self.layout.addWidget(self.accumulationLabel, 1, 8, 1, 1,
                               QtCore.Qt.AlignRight)      
-        self.layout.addWidget(self.accumulationBox, 2, 7, 1, 1)
-        self.layout.addWidget(self.kineticLabel, 2, 8, 1, 1,
+        self.layout.addWidget(self.accumulationBox, 1, 9, 1, 1)
+        self.layout.addWidget(self.kineticLabel, 1, 10, 1, 1,
                               QtCore.Qt.AlignRight)      
-        self.layout.addWidget(self.kineticBox, 2, 9, 1, 1)
-        self.layout.addWidget(self.readoutLabel, 2, 10, 1, 1,
+        self.layout.addWidget(self.kineticBox, 1, 11, 1, 1)
+        self.layout.addWidget(self.readoutLabel, 1, 12, 1, 1,
                               QtCore.Qt.AlignRight)      
-        self.layout.addWidget(self.readoutBox, 2, 11, 1, 1)
-        self.layout.addWidget(self.imageView, 3, 0, 15, 15)
+        self.layout.addWidget(self.readoutBox, 1, 13, 1, 1)
+        self.layout.addWidget(self.imageView, 2, 0, 15, 15)
         self.setLayout(self.layout)
-        self.setFixedSize(1200, 800)
+        # self.setFixedSize(1200, 800)
         self.setWindowTitle('{} - {} - client'.format(
                             self.servername, self.name))
     
@@ -152,13 +153,13 @@ class CameraClient(QtWidgets.QWidget):
     def reinitialize(self):
         server = yield self.cxn.get_server(self.servername)
         yield server.signal__update(self.update_id, context=self.context)
-        # try:
-        #     yield server.removeListener(listener=self.receive_update, source=None,
-        #                            ID=self.update_id, context=self.context)
-        # except:
-        #     pass
-        yield server.addListener(listener=self.receive_update, source=None,
-                                  ID=self.update_id, context=self.context)
+        try:
+            yield server.removeListener(listener=self.receive_update, source=None,
+                                    ID=self.update_id, context=self.context)
+            yield server.addListener(listener=self.receive_update, source=None,
+                                    ID=self.update_id, context=self.context)
+        except:
+            pass
 
     def disable(self):
         pass
@@ -234,15 +235,15 @@ class CameraClient(QtWidgets.QWidget):
         signal = json.loads(signal)
         for key, value in signal.items():
             if key == self.name:
-                self.getAll()
                 record_path = value['record_path']
                 record_type = value['record_type']
+                record_settings = value['record_settings']
                 image_path = self.data_directory.format(*record_path)
                 image_path = os.path.join(self.data_directory, *record_path.split('/')) + '.hdf5'
-                self.plot(image_path, record_type)
+                self.plot(image_path, record_type, record_settings)
                 
-    def plot(self, image_path, record_type):
-        image = process_image(image_path, record_type)
+    def plot(self, image_path, record_type, record_settings):
+        image = process_image(image_path, record_type, record_settings)
         image = np.rot90(image)
         self.imageView.setImage(image, autoRange=False, autoLevels=False)
 
