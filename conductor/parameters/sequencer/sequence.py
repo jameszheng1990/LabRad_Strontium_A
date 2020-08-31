@@ -61,22 +61,23 @@ class Sequence(ConductorParameter):
             request = {device_name: True for device_name in self.sequencer_devices}
             self.sequencer_server.running(json.dumps(request)) 
             self.is_initiated = True
-            print('NI DAQ initiation done!')
+            print('[conductor] NI DAQ initiation done!')
         
         else:
             shot_number = self.server.experiment.get('shot_number')
-            # Check if this is the first shot of current experiment  (popped up from queue), then write to DAQ and run
+            # Check if this is the first shot of current experiment (popped up from queue), then write to DAQ and run
             if self.server.is_first:
-                print('Writing NI DAQ task shot#{}'.format(shot_number))
-                request = {device_name: self.value for device_name in self.sequencer_devices}
-                self.sequencer_server.sequence(json.dumps(request))  # Write DAQ
-                self.log_experiment_sequence() # LOG When sequence is written
-                
-                print('Running NI DAQ task shot#{}'.format(shot_number))
+                print('[conductor] Running NI DAQ task shot#{}'.format(shot_number))
+                current_sequencer_parameter_values = self._get_sequencer_parameter_values()
+                # re-write DAQ when sequener parameter values are not the same.
+                if (current_sequencer_parameter_values != self.previous_sequencer_parameter_values):
+                    request = {device_name: self.value for device_name in self.sequencer_devices}
+                    self.sequencer_server.sequence(json.dumps(request))  # Write DAQ
+                    self.log_experiment_sequence() # LOG When sequence is written
+                    
                 request = {device_name: True for device_name in self.sequencer_devices}
                 self.sequencer_server.running(json.dumps(request))   # Run DAQ
                 
-                print('Done with NI DAQ task shot#{}'.format(shot_number))
                 self.previous_sequencer_parameter_values = self._get_sequencer_parameter_values()
                 self.server.is_first = False
             
@@ -86,7 +87,7 @@ class Sequence(ConductorParameter):
                 request = {self.sequencer_master_device: self.default_value} # Write default value to Z_CLK device
                 self.sequencer_server.sequence(json.dumps(request))  
                 
-                # Add 06/10/20, clear parameter value queues after experiments end
+                # clear parameter value queues after experiments end
                 reset_parameters = self.server.saved_parameter_values
                 for key, value in reset_parameters.items():
                     reset_parameters[key] = {}
@@ -100,8 +101,9 @@ class Sequence(ConductorParameter):
                 # And clear experiments and clear experiment queues
                 self.server._clear_experiment()
                 self.server._clear_experiment_queue()
+                self.previous_sequencer_parameter_values = None
                     
-                print('Experiments end!')
+                print('[conductor] Experiments end!')
                      
                 self.server.is_end = False
                 self.server.is_stop = False
@@ -110,24 +112,19 @@ class Sequence(ConductorParameter):
                 
             # If not first or end, this would be from shot to shot (scan), or looping
             else:
+                print('[conductor] Running NI DAQ task shot#{}'.format(shot_number))
                 experiment_loop = self.server.experiment.get('loop')
                 current_sequencer_parameter_values = self._get_sequencer_parameter_values()
-                
                 # only re-write DAQ when loop is False and sequener parameter values are not the same.
                 if (experiment_loop is False) and (current_sequencer_parameter_values 
                                                    != self.previous_sequencer_parameter_values):
-                    
-                    print('Writing NI DAQ task shot#{}'.format(shot_number))
                     request = {device_name: self.value for device_name in self.sequencer_devices}
                     self.sequencer_server.sequence(json.dumps(request))  # Write DAQ
-
                     self.log_experiment_sequence() # LOG When sequence is written
                 
-                print('Running NI DAQ task shot#{}'.format(shot_number))
                 request = {device_name: True for device_name in self.sequencer_devices}
-                self.sequencer_server.running(json.dumps(request))   # Run value
+                self.sequencer_server.running(json.dumps(request))   # Run DAQ
                 
-                print('Done with NI DAQ task shot#{}'.format(shot_number))
                 self.previous_sequencer_parameter_values = current_sequencer_parameter_values
         
         callInThread(self._advance_on_trigger)
@@ -171,7 +168,7 @@ class Sequence(ConductorParameter):
     def log_experiment_sequence(self):
         name = self.server.experiment_name
         try:
-            print('Log experiment ({})'.format(name))
+            # print('Log experiment ({})'.format(name))
             log_path = os.path.join(self.server.experiment_directory, name.split('\\')[0], name.split('\\')[1]+'_sequence')
             log_dir, log_name = os.path.split(log_path)
             if not os.path.isdir(log_dir):
