@@ -14,6 +14,9 @@ class AndorCam(DefaultDevice):
         # self.connect_to_labrad()
         """ To be implemented by child class """
         
+    def config(self, record_path = None, record_type = None, record_setting={}):
+        """ To be implemented by child class """
+        
     def record(self, record_path = None, record_type = None, record_setting={}):
         """ To be implemented by child class """
     
@@ -30,11 +33,12 @@ class AndorCam(DefaultDevice):
                     compression_opts=self._compression_level)
         h5f.close()
         
-    def _send_update(self, record_path, record_type):
+    def _send_update(self, record_path, record_type, record_settings):
         signal = {
             self.name: {
                 'record_path': record_path,
                 'record_type': record_type,
+                'record_settings': record_settings,
                 },
             }
         self.server.update(json.dumps(signal))
