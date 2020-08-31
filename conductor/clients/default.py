@@ -57,7 +57,7 @@ class ConductorControl(QtWidgets.QGroupBox):
         
         self.setWindowTitle(self.name)
         self.setLayout(self.layout)
-        self.setFixedSize(800, 300)
+        self.setFixedSize(800, 450)
 
     @inlineCallbacks
     def connectSignals(self):
@@ -77,6 +77,8 @@ class ConductorControl(QtWidgets.QGroupBox):
             if (message_type == 'is_running') and (message is not None):
                 self.NodeClient.disableAll(message)
                 self.CommonActionClient.disableWhenRunning(message)
+            if (message_type == 'shots') and (message is not None):
+                self.CommonActionClient.displayShots(message)
 
     @inlineCallbacks
     def reinitialize(self):
