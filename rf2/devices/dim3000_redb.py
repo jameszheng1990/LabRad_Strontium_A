@@ -11,8 +11,8 @@ class AmplitudeOutOfBoundsError(Exception):
         super(AmplitudeOutOfBoundsError, self).__init__(message)
 
 
-class DIM3000REDA(object):
-    _serial_port = 'COM13'
+class DIM3000REDB(object):
+    _serial_port = 'COM8'
     _serial_timeout = 0.5
     _serial_baudrate = 19200
     _serial_termination = '\n'
@@ -24,7 +24,7 @@ class DIM3000REDA(object):
     
     rf_state = False
     fm_state = True
-    fm_dev = 12
+    fm_dev = 10
 
     def __init__(self, **kwargs):
         for key, value in kwargs.items():
@@ -120,7 +120,7 @@ class DIM3000REDA(object):
             self.rf_state = False
         self._write_to_slot(command)
 
-class DIM3000REDAProxy(DIM3000REDA):    
+class DIM3000REDBProxy(DIM3000REDB):    
     _serial_servername = 'serial'
 
     def __init__(self, cxn=None, **kwargs):
@@ -131,4 +131,4 @@ class DIM3000REDAProxy(DIM3000REDA):
         from serial_server.proxy import SerialProxy
         global serial
         serial = SerialProxy(cxn[self._serial_servername])
-        DIM3000REDA.__init__(self, **kwargs)
+        DIM3000REDB.__init__(self, **kwargs)

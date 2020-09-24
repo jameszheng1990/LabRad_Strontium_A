@@ -3,10 +3,13 @@ import time
 
 class Repump_SG(object):
     # _visa_address = 'USB0::0x1AB1::0x0642::DG1ZA201701875::INSTR'
-    _visa_address = 'USB0::0x1AB1::0x0643::DG8A212801146::INSTR'
-#    _baud_rate = 9600
-#    _write_termination = '\n'
-#    _read_termination = '\n'
+    # _visa_address = 'USB0::0x1AB1::0x0643::DG8A212801146::INSTR'
+    
+    _vxi11_address = '192.168.1.11'
+    
+    _baud_rate = 9600
+    _write_termination = '\n'
+    _read_termination = '\n'
     _timeout = 5000
     _source1 = 1
     _source2 = 2
@@ -17,18 +20,24 @@ class Repump_SG(object):
     def __init__(self, **kwargs):
         for key, value in kwargs.items():
             setattr(self, key, value)
-        if 'visa' not in globals():
-            global visa
-            import visa
-        rm = visa.ResourceManager()
-        self._inst = rm.open_resource(self._visa_address)
+        if 'vxi11' not in globals():
+            global vxi11
+            import vxi11
+        self._inst = vxi11.Instrument(self._vxi11_address)
+        self.output()
 
     def _write_to_slot(self, command):
         self._inst.write(command)
     
     def _query_to_slot(self, command):
-        response = self._inst.query(command)
-        return response.strip()
+        response = self._inst.ask(command)
+        return response
+    
+    def output(self):
+        command1 = ':OUTP{} ON'.format(self._source1)
+        command2 = ':OUTP{} ON'.format(self._source2)
+        self._write_to_slot(command1)
+        self._write_to_slot(command2)
     
     #Channel 1 for 679 nm, channel 2 for 707 nm
     
@@ -141,14 +150,14 @@ class Repump_SG(object):
         self._write_to_slot(command)
         
 class RepumpSGProxy(Repump_SG):
-    _visa_servername = 'visa'
+    _vxi11_servername = 'vxi11'
 
     def __init__(self, cxn=None, **kwargs):
-        from visa_server.proxy import VisaProxy
+        from vxi11_server.proxy import Vxi11Proxy
         if cxn == None:
             import labrad
             cxn = labrad.connect()
-        global visa
-        visa_server = cxn[self._visa_servername]
-        visa = VisaProxy(visa_server)
+        global vxi11
+        vxi11_server = cxn[self._vxi11_servername]
+        vxi11 = Vxi11Proxy(vxi11_server)
         Repump_SG.__init__(self, **kwargs)

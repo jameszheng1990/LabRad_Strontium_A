@@ -12,7 +12,7 @@ class AmplitudeOutOfBoundsError(Exception):
 
 
 class DIM3000BLUE2(object):
-    _serial_port = 'COM3'
+    _serial_port = 'COM6'
     _serial_timeout = 0.5
     _serial_baudrate = 19200
     _serial_termination = '\n'
