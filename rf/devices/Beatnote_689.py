@@ -1,9 +1,10 @@
-from rf.devices.RIGOL_SG.device import RIGOL_SG
+from rf.devices.RIGOL_SG_vxi11.device import RIGOL_SG_vxi11
 
-class Beatnote_689(RIGOL_SG):
+class Beatnote_689(RIGOL_SG_vxi11):
     autostart = True
     
-    _visa_address = 'USB0::0x1AB1::0x0641::DG4E212601193::INSTR'
+    # _visa_address = 'USB0::0x1AB1::0x0641::DG4E212601193::INSTR'
+    _vxi11_address = '192.168.1.12'
 
     frequency_range = (1, 200e6)
 

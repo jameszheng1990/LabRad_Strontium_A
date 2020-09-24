@@ -23,7 +23,7 @@ class DIM3000(DefaultDevice):
     def initialize(self, config):
         super(DIM3000, self).initialize(config)
         self.connect_to_labrad()
-
+        
         self.serial_server = self.cxn[self._serial_servername]
         serial = SerialProxy(self.serial_server)
         
