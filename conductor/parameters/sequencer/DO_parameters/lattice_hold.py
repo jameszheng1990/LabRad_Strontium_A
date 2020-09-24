@@ -25,7 +25,7 @@ class lattice_hold(ConductorParameter):
         
         try:
             if (experiment is not None) and  (not is_end) and ('lattice_hold' in parameter_values.get('sequencer.DO_parameters') ) :
-                column = 0
+                column = 1
                 self.setting = {'column': column}
             else:
                 self.value = None

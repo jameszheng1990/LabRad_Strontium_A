@@ -25,7 +25,7 @@ class blue_mot(ConductorParameter):
         try:
             if (experiment is not None) and  (not is_end) and ('blue_mot' in parameter_values.get('sequencer.DO_parameters') ) :
                 column = 1
-                self.value = [self.value, column]
+                self.setting = {'column': column}
                 
             else:
                 self.value = None

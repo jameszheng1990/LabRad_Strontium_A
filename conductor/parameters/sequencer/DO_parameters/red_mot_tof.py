@@ -13,6 +13,7 @@ class red_mot_tof(ConductorParameter):
     priority = 1
     call_in_thread = True
     value = None
+    setting = None
     
     def initialize(self, config):
         super(red_mot_tof, self).initialize(config)
@@ -25,7 +26,7 @@ class red_mot_tof(ConductorParameter):
         try:
             if (experiment is not None) and  (not is_end) and ('red_mot_tof' in parameter_values.get('sequencer.DO_parameters') ) :
                 column = 0
-                self.value = [self.value, column]
+                self.setting = {'column': column}
             else:
                 self.value = None
         except:
