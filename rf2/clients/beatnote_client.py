@@ -68,6 +68,11 @@ class RedMOTRFClient(QtWidgets.QGroupBox):
         self.transitionfreqBox.setGroupSeparatorShown(True)
         self.transitionfreqBox.setSuffix(' MHz')
         
+        # CH 2
+        self.name2Label = ClickableLabel('<b>' + 'CH2' + '</b>')
+        self.state2Button = QtWidgets.QPushButton()
+        self.state2Button.setCheckable(True)
+        
         self.layout = QtWidgets.QGridLayout() 
         self.layout.addWidget(self.nameLabel, 0, 0, 1, 2, 
                               QtCore.Qt.AlignCenter)
@@ -88,32 +93,59 @@ class RedMOTRFClient(QtWidgets.QGroupBox):
                               QtCore.Qt.AlignRight)
         self.layout.addWidget(self.redafreqBox, 4, 1)   
         
+        self.layout.addWidget(self.name2Label, 5, 0, 1, 1, 
+                              QtCore.Qt.AlignRight)
+        self.layout.addWidget(self.state2Button, 5, 1)
+        
         self.setLayout(self.layout)
 
         self.setWindowTitle(self.name)
-        self.setFixedSize(120 + self.spinboxWidth, 150)
+        self.setFixedSize(120 + self.spinboxWidth, 170)
         
         self.connectSignals()
         self.reactor.callInThread(self.getAll)
         
     def getAll(self):
-        self.getBeatnote()
+        self.getFrequency()
         self.getTransitionFreq()
+        self.getRFState2()
     
-    def getBeatnote(self):
+    def getFrequency(self):
         frequency = self.device.freq1
-        self.reactor.callFromThread(self.displayBeatnote, frequency)
+        self.reactor.callFromThread(self.displayFrequency, frequency)
 
-    def displayBeatnote(self, frequency):
+    def displayFrequency(self, frequency):
         self.beatnoteBox.display(frequency)
+        
+    def getRFState2(self):
+        rf_state2 = self.device.state2
+        self.reactor.callFromThread(self.displayRFState2, rf_state2)
+    
+    def displayRFState2(self, rf_state2):
+        if rf_state2:
+            self.state2Button.setChecked(1)
+            self.state2Button.setText('RF ON')
+        else:
+            self.state2Button.setChecked(0)
+            self.state2Button.setText('RF OFF')
+            
+    def onNewRFState2(self):
+        rf_state2 = self.state2Button.isChecked()
+        self.reactor.callInThread(self.setRFState2, rf_state2)
+    
+    def setRFState2(self, rf_state2):
+        self.device.state2 = rf_state2
+        self.reactor.callFromThread(self.displayRFState2, rf_state2)
     
     def connectSignals(self):
         self.nameLabel.clicked.connect(self.onNameLabelClick)
         self.beatnoteLabel.clicked.connect(self.onBeatnoteLabelClick)
         
         self.beatnoteBox.returnPressed.connect(self.onNewBeatnote)
-        
         self.isotopeBox.currentIndexChanged.connect(self.onIsotopeBoxChange)
+        
+        self.name2Label.clicked.connect(self.onNameLabelClick)
+        self.state2Button.released.connect(self.onNewRFState2)
     
     def onIsotopeBoxChange(self):
         self.reactor.callInThread(self.getTransitionFreq)
@@ -137,7 +169,7 @@ class RedMOTRFClient(QtWidgets.QGroupBox):
         self.reactor.callInThread(self.getAll)
     
     def onBeatnoteLabelClick(self):
-        self.reactor.callInThread(self.getBeatnote)
+        self.reactor.callInThread(self.getFrequency)
 
     def onNewBeatnote(self):
         frequency = self.beatnoteBox.value()
@@ -145,7 +177,7 @@ class RedMOTRFClient(QtWidgets.QGroupBox):
 
     def setBeatnote(self, frequency):
         self.device.freq1 = frequency
-        self.reactor.callFromThread(self.displayBeatnote, frequency)
+        self.reactor.callFromThread(self.displayFrequency, frequency)
     
     @inlineCallbacks
     def connectLabrad(self):
@@ -158,9 +190,9 @@ class RedMOTRFClient(QtWidgets.QGroupBox):
     
     def receiveUpdate(self, c, updateJson):
         update = json.loads(updateJson)
-        # state = update.get('state')
-        # if state is not None:
-        #     self.displayState(state)
+        state2 = update.get('state2')
+        if state2 is not None:
+            self.displayRFState2(state2)
         frequency = update.get('frequency')
         if frequency is not None:
             self.displayFrequency(frequency)
@@ -183,7 +215,7 @@ class MultipleClientContainer(QtWidgets.QWidget):
         self.layout = QtWidgets.QHBoxLayout()
         for client in self.client_list:
             self.layout.addWidget(client)
-        self.setFixedSize(240 * len(self.client_list), 190)
+        self.setFixedSize(240 * len(self.client_list), 220)
         self.setWindowTitle(self.name)
         self.setLayout(self.layout)
 

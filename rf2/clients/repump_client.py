@@ -15,7 +15,7 @@ class Repump_RFClient(QtWidgets.QGroupBox):
     frequencyDisplayUnits = [(0, 'Hz')]
     frequencyDigits = None
 
-    voltageDisplayUnits = [(-3, 'mV'), (0, 'V')]
+    voltageDisplayUnits = [(-3, 'mV')]
     voltageDigits = None
 
     state = None
