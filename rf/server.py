@@ -48,8 +48,9 @@ class RFServer(DeviceServer):
         return response
 
     def _state(self, name, state):
+        """ state be True/False here """
         device = self._get_device(name)
-        if state:
+        if state is not None:
             device.set_state(state)
         response = device.get_state()
         return response
@@ -114,6 +115,68 @@ class RFServer(DeviceServer):
         if amplitude:
             device.set_amplitude(amplitude)
         response = device.get_amplitude()
+        return response
+
+    @setting(20)
+    def fm_gains(self, c, request_json='{}'):
+        """ get or update device fm gains """
+        request = json.loads(request_json)
+        response = self._fm_gains(request)
+        response_json = json.dumps(response)
+        return response_json
+        
+    def _fm_gains(self, request):
+        if request == {}:
+            active_devices = self._get_active_devices()
+            request = {device_name: None for device_name in active_devices}
+        response = {}
+        for device_name, fm_gain in request.items():
+            device_response = None
+            try:
+                device_response = self._fm_gain(device_name, fm_gain)
+            except:
+                self._reload_device(device_name, {})
+                device_response = self._fm_gain(device_name, fm_gain)
+            response.update({device_name: device_response})
+        self._send_update({'fm_gain': response})
+        return response
+
+    def _fm_gain(self, name, fm_gain):
+        device = self._get_device(name)
+        if fm_gain:
+            device.set_fm_gain(fm_gain)
+        response = device.get_fm_gain()
+        return response
+    
+    @setting(21)
+    def tables(self, c, request_json='{}'):
+        """ set table mode entries, or get table entries """
+        request = json.loads(request_json)
+        response = self._tables(request)
+        response_json = json.dumps(response)
+        return response_json
+        
+    def _tables(self, request):
+        if request == {}:
+            active_devices = self._get_active_devices()
+            request = {device_name: None for device_name in active_devices}
+        response = {}
+        for device_name, device_request in request.items():
+            device_response = None
+            try:
+                device_response = self._table(device_name, device_request)
+            except:
+                self._reload_device(device_name, {})
+                device_response = self._table(device_name, device_request)
+            response.update({device_name: device_response})
+        self._send_update({'tables': response})
+        return response
+
+    def _table(self, name, device_request):
+        device = self._get_device(name)
+        if device_request:
+            device.set_table(device_request)
+        response = device.get_table()
         return response
     
     # @setting(13)
